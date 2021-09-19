@@ -92,6 +92,28 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 		s.ChannelMessageSend(m.ChannelID, "salam")
 	}
 
+	if strings.HasPrefix(m.Content, "?wholesome ") {
+		clipped := strings.Replace(m.Content, "?wholesome ", "", 1)
+		wholesomeamt := rand.Intn(101)
+		var wholesomestat string
+		if wholesomeamt == 0 {
+			wholesomestat = " is the least wholesome of them all."
+		} else if wholesomeamt < 25 {
+			wholesomestat = " is definitively unwholesome."
+		} else if wholesomeamt < 50 { 
+			wholesomestat = " is pretty unwholesome."
+		} else if wholesomeamt < 75 {
+			wholesomestat = " is pretty wholesome!"
+		} else if wholesomeamt < 100 {
+			wholesomestat = " is incredibly wholesome!"
+		} else {
+			wholesomestat = " is super freaking wholesome!"
+		}
+		message := clipped + " is " + strconv.Itoa(wholesomeamt) + "% wholesome\n" + clipped + wholesomestat
+
+		s.ChannelMessageSend(m.ChannelID, message)
+	}
+
 	if m.Content == "dsd" {
 		s.MessageReactionAdd(m.ChannelID, m.ID, "✅")
 		time.Sleep(2 * time.Second)
@@ -109,28 +131,34 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 	if strings.HasPrefix(m.Content, "?tweet ") {
 		clipped := strings.Replace(m.Content, "?tweet ", "", 1)
 		s.MessageReactionAdd(m.ChannelID, m.ID, "✅")
+		s.MessageReactionAdd(m.ChannelID, m.ID, "🖕")
 		time.Sleep(10 * time.Second)
 		reactionMessage, _ := s.ChannelMessage(m.ChannelID, m.ID)
-
+		
+		upvote := 0
+		downvote := 0
 		for _, x := range reactionMessage.Reactions {
-		log.Println(reactionMessage.Reactions[0].Emoji)
 			if x.Emoji.Name == "✅" {
-				if x.Count > 2 {
-					TwitterSession := anaconda.NewTwitterApiWithCredentials(config.Twitter.Token, config.Twitter.TokenSecret, config.Twitter.Key, config.Twitter.KeySecret)
-					tweet, err := TwitterSession.PostTweet(clipped, url.Values{})
-					if err != nil {
-						log.Fatalf("Tweet post failed" + err.Error())
-					} else {
-						tweeturl := "https://twitter.com/BotSyed/status/"+ strconv.Itoa(int(tweet.Id))
-						s.ChannelMessageSend(m.ChannelID, tweeturl)
-					}
-					TwitterSession.Close()
-				} else {
-					s.ChannelMessageSend(m.ChannelID, "Not enough votes! (need at least 2)")
-				}
-				
+				upvote = x.Count
+			} else if x.Emoji.Name == "🖕" {
+				downvote = x.Count
 			}
 		}
+
+		if upvote > 3 && upvote - downvote > 2 {
+			TwitterSession := anaconda.NewTwitterApiWithCredentials(config.Twitter.Token, config.Twitter.TokenSecret, config.Twitter.Key, config.Twitter.KeySecret)
+			tweet, err := TwitterSession.PostTweet(clipped, url.Values{})
+			if err != nil {
+				log.Println("Tweet post failed" + err.Error())
+			} else {
+				tweeturl := "https://twitter.com/BotSyed/status/"+ strconv.Itoa(int(tweet.Id))
+				s.ChannelMessageSend(m.ChannelID, tweeturl)
+			}				
+			TwitterSession.Close()
+		} else {
+			s.ChannelMessageSend(m.ChannelID, "Not enough upvotes! (need at least 3)")
+		}
+		
 	}
 
 	if strings.HasPrefix(m.Content, "?choose ") {
