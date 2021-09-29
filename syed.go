@@ -11,9 +11,11 @@ import (
 	"math/rand"
 	"net/url"
 	"strconv"
+	"context"
 	//"fmt"
 	"github.com/ChimeraCoder/anaconda"
 	"github.com/bwmarrin/discordgo"
+	"github.com/machinebox/graphql"
 )
 
 type Config struct { 
@@ -182,6 +184,31 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 			selection := rand.Intn(len(options))
 			s.ChannelMessageSend(m.ChannelID, options[selection])
 		}	
+	}
+
+	if strings.HasPrefix(m.Content, "?anime ") {
+		clipped := strings.Replace(m.Content, "?anime ", "", 1)
+		graphqlClient := graphql.NewClient("https://graphql.anilist.co")
+		graphqlRequest := graphql.NewRequest(`
+			{
+					Media(search: "` + clipped + `", type: ANIME, sort: FAVOURITES_DESC) {
+						id
+						title {
+							romaji
+							english
+							native
+						}
+						type
+						genres
+					}
+				
+			}
+		`)
+		var graphqlResponse interface{}
+		if err := graphqlClient.Run(context.Background(), graphqlRequest, &graphqlResponse); err != nil {
+			log.Fatalln(err.Error())
+		}
+		log.Println(graphqlResponse)
 	}
 
 
