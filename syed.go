@@ -263,7 +263,11 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 		var subtitle string
 		if graphqlResponse.Media.Title.English != "" {
 			title = graphqlResponse.Media.Title.English 
-			subtitle = "**" + graphqlResponse.Media.Title.Romaji + "**\n\n"
+			if graphqlResponse.Media.Title.English != graphqlResponse.Media.Title.Romaji {
+				subtitle = "**" + graphqlResponse.Media.Title.Romaji + "**\n\n"
+			} else {
+				subtitle = ""
+			}
 		} else {
 			title = graphqlResponse.Media.Title.Romaji
 			subtitle = ""
@@ -289,9 +293,14 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 		} else {
 			episodes = "\n**Not Yet Aired**"
 		}
-		description := strings.Split(graphqlResponse.Media.Description, "<br>")[0] // only use everything before the first linebreak returned by description
+		description := strings.Split(graphqlResponse.Media.Description, "<br>")[0] + "\n\n" // only use everything before the first linebreak returned by description
 
-		season := "\n\n**Season:  **" + strings.Title(strings.ToLower(graphqlResponse.Media.Season) + " " + strconv.Itoa(graphqlResponse.Media.SeasonYear))
+		var season string
+		if graphqlResponse.Media.Season != "" {
+			season = "**Season:  **" + strings.Title(strings.ToLower(graphqlResponse.Media.Season) + " " + strconv.Itoa(graphqlResponse.Media.SeasonYear))
+		} else { 
+			season = ""
+		}
 		
 		averageScore := "\n**Average Score:  **" + strconv.Itoa(graphqlResponse.Media.AverageScore) + "%"
 		embed := &discordgo.MessageEmbed{
