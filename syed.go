@@ -12,7 +12,7 @@ import (
 	"net/url"
 	"strconv"
 	"context"
-	//"fmt"
+
 	"github.com/ChimeraCoder/anaconda"
 	"github.com/bwmarrin/discordgo"
 	"github.com/machinebox/graphql"
@@ -29,6 +29,33 @@ type Twitter struct {
 	TokenSecret	string
 	Key			string
 	KeySecret	string
+}
+
+type AniData struct {
+	Media struct {
+		ID    int `json:"id"`
+		Title struct {
+			English string `json:"english"`
+			Romaji  string `json:"romaji"`
+		} `json:"title"`
+		Type       string   `json:"type"`
+		Genres     []string `json:"genres"`
+		CoverImage struct {
+			Large string `json:"large"`
+			Color string `json:"color"`
+		} `json:"coverImage"`
+		Status			  string 	  `json:"status"`
+		Season            string      `json:"season"`
+		SeasonYear        int         `json:"seasonYear"`
+		Episodes          int 		  `json:"episodes"`
+		AverageScore      int         `json:"averageScore"`
+		MeanScore         int         `json:"meanScore"`
+		Description       string      `json:"description"`
+		NextAiringEpisode struct {
+			AiringAt int `json:"airingAt"`
+			Episode  int `json:"episode"`
+		} `json:"nextAiringEpisode"`
+	} `json:"Media"`
 }
 
 var config Config
@@ -191,24 +218,102 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 		graphqlClient := graphql.NewClient("https://graphql.anilist.co")
 		graphqlRequest := graphql.NewRequest(`
 			{
-					Media(search: "` + clipped + `", type: ANIME, sort: FAVOURITES_DESC) {
-						id
-						title {
-							romaji
-							english
-							native
-						}
-						type
-						genres
+				Media(search: "` + clipped + `", type: ANIME, sort: SEARCH_MATCH	) {
+					id
+					title {
+						romaji
+						english
 					}
+					type
+					genres
+					coverImage {
+						large
+						color
+					}
+					status
+					season
+					seasonYear
+					episodes
+					averageScore
+					meanScore
+					description (asHtml: false)
+					nextAiringEpisode {
+						airingAt
+						episode
+					}
+				}
 				
 			}
 		`)
-		var graphqlResponse interface{}
+		var graphqlResponse AniData
+		
 		if err := graphqlClient.Run(context.Background(), graphqlRequest, &graphqlResponse); err != nil {
-			log.Fatalln(err.Error())
+			log.Println(err.Error())
+			s.ChannelMessageSend(m.ChannelID, "Anime not found!")
+			return
 		}
-		log.Println(graphqlResponse)
+		color := 0xFFFFFF
+		if graphqlResponse.Media.CoverImage.Color != "" {
+			colorhexstring := strings.Replace(graphqlResponse.Media.CoverImage.Color, "#", "", 1)
+			colorvalue, _ := strconv.ParseInt(colorhexstring, 16, 64)
+			color = int(colorvalue)
+		} 
+
+		var title string
+		var subtitle string
+		if graphqlResponse.Media.Title.English != "" {
+			title = graphqlResponse.Media.Title.English 
+			subtitle = "**" + graphqlResponse.Media.Title.Romaji + "**\n\n"
+		} else {
+			title = graphqlResponse.Media.Title.Romaji
+			subtitle = ""
+		}
+		var genres string
+		for i, s := range graphqlResponse.Media.Genres {
+			if i == 0 {
+				genres += s
+			} else {
+				genres += ", " + s
+			}
+		}
+		var airingTime string
+		if graphqlResponse.Media.Status == "RELEASING" {
+			convtime := time.Unix(int64(graphqlResponse.Media.NextAiringEpisode.AiringAt), 0)
+			airingTime = "\n**Next Airing: **Episode " + strconv.Itoa(graphqlResponse.Media.NextAiringEpisode.Episode)  + " on " + convtime.Month().String() + " " + strconv.Itoa(convtime.Day()) + " " + strconv.Itoa(convtime.Year())
+		} else {
+			airingTime = ""
+		}
+		var episodes string
+		if graphqlResponse.Media.Episodes != 0 {
+			episodes = "\n**Episodes:  **" + strconv.Itoa(graphqlResponse.Media.Episodes)
+		} else {
+			episodes = "\n**Not Yet Aired**"
+		}
+		description := strings.Split(graphqlResponse.Media.Description, "<br>")[0] // only use everything before the first linebreak returned by description
+
+		season := "\n\n**Season:  **" + strings.Title(strings.ToLower(graphqlResponse.Media.Season) + " " + strconv.Itoa(graphqlResponse.Media.SeasonYear))
+		
+		averageScore := "\n**Average Score:  **" + strconv.Itoa(graphqlResponse.Media.AverageScore) + "%"
+		embed := &discordgo.MessageEmbed{
+			Author:      	&discordgo.MessageEmbedAuthor{},
+			Color:      	color,
+			Description: 	subtitle + description + season + episodes  + averageScore + airingTime,
+			URL:			"https://anilist.co/anime/" + strconv.Itoa(graphqlResponse.Media.ID),
+			Fields: []*discordgo.MessageEmbedField{
+				&discordgo.MessageEmbedField{
+					Name:   "Genres",
+					Value:  genres,
+					Inline: false,
+				},
+			},
+			
+			Image: &discordgo.MessageEmbedImage{
+				URL: graphqlResponse.Media.CoverImage.Large,
+			},
+			Title:     title,
+		}
+		
+		s.ChannelMessageSendEmbed(m.ChannelID, embed)
 	}
 
 
