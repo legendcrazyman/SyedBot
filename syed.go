@@ -97,6 +97,34 @@ type AniStaffData struct {
 	} `json:"Staff"`
 }
 
+type AniCharData struct {
+	Character struct {
+		ID     int    `json:"id"`
+		Gender string `json:"gender"`
+		Age    string `json:"age"`
+		Name   struct {
+			Full string `json:"full"`
+		} `json:"name"`
+		DateOfBirth struct {
+			Year  int `json:"year"`
+			Month int `json:"month"`
+			Day   int `json:"day"`
+		} `json:"dateOfBirth"`
+		Image struct {
+			Large string `json:"large"`
+		} `json:"image"`
+		Media struct {
+			Nodes []struct {
+				ID    int `json:"id"`
+				Title struct {
+					English string `json:"english"`
+					Romaji  string `json:"romaji"`
+				} `json:"title"`
+			} `json:"nodes"`
+		} `json:"media"`
+	} `json:"Character"`
+}
+
 var config Config
 
 func init() {
@@ -528,6 +556,104 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 		s.ChannelMessageSendEmbed(m.ChannelID, embed)
 	}
+
+	if strings.HasPrefix(m.Content, "?anichar ") {
+		clipped := strings.Replace(m.Content, "?anichar ", "", 1)
+		graphqlClient := graphql.NewClient("https://graphql.anilist.co")
+		graphqlRequest := graphql.NewRequest(`
+			{
+				Character(search: "` + clipped + `", sort: SEARCH_MATCH){
+					id
+					gender
+					age
+					name {
+						full
+					}
+					dateOfBirth {
+						year
+					  	month
+					  	day
+					}
+					image {
+					  	large
+					}
+					media(sort: POPULARITY_DESC, page: 1, perPage: 3){
+					  	nodes{
+							id
+							title {
+						  		english
+						  		romaji
+							}
+					  	}
+					}	
+				}
+			}
+		`)
+		var graphqlResponse AniCharData
+		if err := graphqlClient.Run(context.Background(), graphqlRequest, &graphqlResponse); err != nil {
+			log.Println(err.Error())
+			s.ChannelMessageSend(m.ChannelID, "Character not found!")
+			return
+		}
+
+		var birth string
+		if graphqlResponse.Character.DateOfBirth.Day != 0 {
+			birth = "\n\n**Birth: **" + strconv.Itoa(graphqlResponse.Character.DateOfBirth.Day) + "/" + strconv.Itoa(graphqlResponse.Character.DateOfBirth.Month)
+			if graphqlResponse.Character.DateOfBirth.Year != 0 {
+				birth += "/" + strconv.Itoa(graphqlResponse.Character.DateOfBirth.Year)
+			}
+		} else {
+			birth = ""
+		}
+
+		var age string
+		if graphqlResponse.Character.Age != "" {
+			age = "\n**Age: **" + graphqlResponse.Character.Age
+		} else {
+			age = ""
+		}
+
+		var gender string
+		if graphqlResponse.Character.Gender != "" {
+			gender = "\n**Gender: **" + graphqlResponse.Character.Gender
+		} else {
+			gender = ""
+		}
+
+		var appearances string
+		var series string
+		for i, s := range graphqlResponse.Character.Media.Nodes {
+			if s.Title.English != "" {
+				appearances += "[" + s.Title.English
+			} else {
+				appearances += "[" + s.Title.Romaji
+			}
+			if i == 0 {
+				series = "*" + appearances + "](https://anilist.co/anime/" + strconv.Itoa(s.ID) + ")*"
+			}
+			appearances += "](https://anilist.co/anime/" + strconv.Itoa(s.ID) + ")\n"
+		}
+
+		embed := &discordgo.MessageEmbed{
+			Author:      &discordgo.MessageEmbedAuthor{},
+			Color:       0xFFFFFF,
+			Description: series + birth + age + gender,
+			URL:         "https://anilist.co/character/" + strconv.Itoa(graphqlResponse.Character.ID),
+			Image: &discordgo.MessageEmbedImage{
+				URL: graphqlResponse.Character.Image.Large,
+			},
+			Title: graphqlResponse.Character.Name.Full,
+		}
+		if appearances != "" {
+			embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
+				Name:  "\n\nAppearances",
+				Value: appearances,
+			})
+		}
+
+		s.ChannelMessageSendEmbed(m.ChannelID, embed)
+	}
+
 }
 
 //Handler doesn't actually detect reactions, not sure why
