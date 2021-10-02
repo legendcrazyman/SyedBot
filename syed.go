@@ -214,26 +214,13 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 		s.ChannelMessageSend(m.ChannelID, "holy shit guys, "+clipped)
 	}
 
-	//surely these are better to do with regex
-	if strings.HasPrefix(m.Content, "im ") {
-		clipped := strings.Replace(m.Content, "im ", "", 1)
-		s.ChannelMessageSend(m.ChannelID, "hi "+clipped)
-	}
-	if strings.HasPrefix(m.Content, "i'm ") {
-		clipped := strings.Replace(m.Content, "i'm ", "", 1)
-		s.ChannelMessageSend(m.ChannelID, "hi "+clipped)
-	}
-	if strings.HasPrefix(m.Content, "IM ") {
-		clipped := strings.Replace(m.Content, "IM ", "", 1)
-		s.ChannelMessageSend(m.ChannelID, "hi "+clipped)
-	}
-	if strings.HasPrefix(m.Content, "I'M ") {
-		clipped := strings.Replace(m.Content, "I'M ", "", 1)
-		s.ChannelMessageSend(m.ChannelID, "hi "+clipped)
-	}
-	if strings.HasPrefix(m.Content, "I'm ") {
-		clipped := strings.Replace(m.Content, "I'm ", "", 1)
-		s.ChannelMessageSend(m.ChannelID, "hi "+clipped)
+	imsearch, err := regexp.Compile(`^((.|\n)*?)( |^)[iI]'?[mM] `)
+	if err != nil {
+		log.Println(err.Error())
+	} else {
+		if imsearch.MatchString(m.Content) {
+			s.ChannelMessageSend(m.ChannelID, "hi "+imsearch.ReplaceAllString(m.Content, ""))
+		}
 	}
 
 	if m.Content == "dsd" {
