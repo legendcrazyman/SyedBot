@@ -1,12 +1,12 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"math/rand"
+	"net/http"
 	"net/url"
 	"os"
 	"os/signal"
@@ -18,7 +18,6 @@ import (
 
 	"github.com/ChimeraCoder/anaconda"
 	"github.com/bwmarrin/discordgo"
-	"github.com/machinebox/graphql"
 )
 
 type Config struct {
@@ -34,96 +33,99 @@ type Twitter struct {
 }
 
 type AniData struct {
-	Media struct {
-		ID    int `json:"id"`
-		Title struct {
-			English string `json:"english"`
-			Romaji  string `json:"romaji"`
-		} `json:"title"`
-		Type       string   `json:"type"`
-		Genres     []string `json:"genres"`
-		CoverImage struct {
-			Large string `json:"large"`
-			Color string `json:"color"`
-		} `json:"coverImage"`
-		Status            string `json:"status"`
-		Season            string `json:"season"`
-		SeasonYear        int    `json:"seasonYear"`
-		Episodes          int    `json:"episodes"`
-		AverageScore      int    `json:"averageScore"`
-		MeanScore         int    `json:"meanScore"`
-		Format            string `json:"format"`
-		Description       string `json:"description"`
-		NextAiringEpisode struct {
-			AiringAt int `json:"airingAt"`
-			Episode  int `json:"episode"`
-		} `json:"nextAiringEpisode"`
-	} `json:"Media"`
+	Data MediaData `json:"data"`
+}
+type Title struct {
+	Romaji  string `json:"romaji"`
+	English string `json:"english"`
+}
+type CoverImage struct {
+	Large string `json:"large"`
+	Color string `json:"color"`
+}
+
+type NextAiringEpisode struct {
+	AiringAt int `json:"airingAt"`
+	Episode  int `json:"episode"`
+}
+type Media struct {
+	ID                int               `json:"id"`
+	Title             Title             `json:"title"`
+	Type              string            `json:"type"`
+	Genres            []string          `json:"genres"`
+	CoverImage        CoverImage        `json:"coverImage"`
+	Status            string            `json:"status"`
+	Season            string            `json:"season"`
+	SeasonYear        int               `json:"seasonYear"`
+	Episodes          int               `json:"episodes"`
+	AverageScore      int               `json:"averageScore"`
+	MeanScore         int               `json:"meanScore"`
+	Format            string            `json:"format"`
+	Description       string            `json:"description"`
+	NextAiringEpisode NextAiringEpisode `json:"nextAiringEpisode"`
+}
+type MediaData struct {
+	Media Media `json:"Media"`
 }
 
 type AniStaffData struct {
-	Staff struct {
-		ID                 int      `json:"id"`
-		Gender             string   `json:"gender"`
-		Age                int      `json:"age"`
-		PrimaryOccupations []string `json:"primaryOccupations"`
-		DateOfBirth        struct {
-			Year  int `json:"year"`
-			Month int `json:"month"`
-			Day   int `json:"day"`
-		} `json:"dateOfBirth"`
-		Name struct {
-			Full string `json:"full"`
-		} `json:"name"`
-		Image struct {
-			Large string `json:"large"`
-		} `json:"image"`
-		Characters struct {
-			Nodes []struct {
-				ID   int `json:"id"`
-				Name struct {
-					Full string `json:"full"`
-				} `json:"name"`
-				Media struct {
-					Nodes []struct {
-						ID    int `json:"id"`
-						Title struct {
-							Romaji  string `json:"romaji"`
-							English string `json:"english"`
-						} `json:"title"`
-					} `json:"nodes"`
-				} `json:"media"`
-			} `json:"nodes"`
-		} `json:"characters"`
-	} `json:"Staff"`
+	Data StaffData `json:"data"`
+}
+type DateOfBirth struct {
+	Year  int `json:"year"`
+	Month int `json:"month"`
+	Day   int `json:"day"`
+}
+type Name struct {
+	Full string `json:"full"`
+}
+type Image struct {
+	Large string `json:"large"`
+}
+type Nodes struct {
+	ID    int   `json:"id"`
+	Title Title `json:"title"`
+}
+type MediaNodes struct {
+	Nodes []Media `json:"nodes"`
+}
+type CharacterNode struct {
+	ID    int        `json:"id"`
+	Name  Name       `json:"name"`
+	Media MediaNodes `json:"media"`
+}
+type Characters struct {
+	Nodes []CharacterNode `json:"nodes"`
+}
+type Staff struct {
+	ID                 int         `json:"id"`
+	Gender             string      `json:"gender"`
+	Age                int         `json:"age"`
+	PrimaryOccupations []string    `json:"primaryOccupations"`
+	DateOfBirth        DateOfBirth `json:"dateOfBirth"`
+	Name               Name        `json:"name"`
+	Image              Image       `json:"image"`
+	Characters         Characters  `json:"characters"`
+}
+type StaffData struct {
+	Staff Staff `json:"Staff"`
 }
 
 type AniCharData struct {
-	Character struct {
-		ID     int    `json:"id"`
-		Gender string `json:"gender"`
-		Age    string `json:"age"`
-		Name   struct {
-			Full string `json:"full"`
-		} `json:"name"`
-		DateOfBirth struct {
-			Year  int `json:"year"`
-			Month int `json:"month"`
-			Day   int `json:"day"`
-		} `json:"dateOfBirth"`
-		Image struct {
-			Large string `json:"large"`
-		} `json:"image"`
-		Media struct {
-			Nodes []struct {
-				ID    int `json:"id"`
-				Title struct {
-					English string `json:"english"`
-					Romaji  string `json:"romaji"`
-				} `json:"title"`
-			} `json:"nodes"`
-		} `json:"media"`
-	} `json:"Character"`
+	Data CharData `json:"data"`
+}
+
+type Character struct {
+	ID          int         `json:"id"`
+	Gender      string      `json:"gender"`
+	Age         string      `json:"age"`
+	Name        Name        `json:"name"`
+	DateOfBirth DateOfBirth `json:"dateOfBirth"`
+	Image       Image       `json:"image"`
+	Media       MediaNodes  `json:"media"`
+}
+type CharData struct {
+	Character Character `json:"Character"`
 }
 
 var config Config
@@ -347,43 +349,40 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 	if strings.HasPrefix(m.Content, "?anime ") {
 		clipped := strings.Replace(m.Content, "?anime ", "", 1)
-		graphqlClient := graphql.NewClient("https://graphql.anilist.co")
-		graphqlRequest := graphql.NewRequest(`
-			{
-				Media(search: "` + clipped + `", type: ANIME, sort: SEARCH_MATCH	) {
-					id
-					title {
-						romaji
-						english
-					}
-					type
-					genres
-					coverImage {
-						large
-						color
-					}
-					status
-					season
-					seasonYear
-					episodes
-					averageScore
-					meanScore
-					format
-					description (asHtml: false)
-					nextAiringEpisode {
-						airingAt
-						episode
-					}
-				}
-			}
-		`)
-		var graphqlResponse AniData
+		url := "https://graphql.anilist.co"
+		method := "POST"
 
-		if err := graphqlClient.Run(context.Background(), graphqlRequest, &graphqlResponse); err != nil {
+		payload := strings.NewReader("{\"query\":\"query { Media(search: \\\"" + clipped + "\\\", type: ANIME, sort: SEARCH_MATCH) { id title { romaji english } type genres coverImage { large color } status season seasonYear episodes averageScore meanScore format description (asHtml: false) nextAiringEpisode { airingAt episode } } }\",\"variables\":{}}")
+		client := &http.Client{}
+		req, err := http.NewRequest(method, url, payload)
+
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		req.Header.Add("Content-Type", "application/json")
+
+		res, err := client.Do(req)
+		if err != nil {
 			log.Println(err.Error())
 			s.ChannelMessageSend(m.ChannelID, "Anime not found!")
 			return
 		}
+		defer res.Body.Close()
+
+		body, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		var response AniData
+
+		if err := json.Unmarshal(body, &response); err != nil {
+			log.Println(err.Error())
+			return
+		}
+		graphqlResponse := response.Data
+
 		color := 0xFFFFFF
 		if graphqlResponse.Media.CoverImage.Color != "" {
 			colorhexstring := strings.Replace(graphqlResponse.Media.CoverImage.Color, "#", "", 1)
@@ -485,52 +484,39 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 	if strings.HasPrefix(m.Content, "?anistaff ") {
 		clipped := strings.Replace(m.Content, "?anistaff ", "", 1)
-		graphqlClient := graphql.NewClient("https://graphql.anilist.co")
-		graphqlRequest := graphql.NewRequest(`
-			{
-				Staff(search: "` + clipped + `", sort: SEARCH_MATCH	) {
-					id
-					gender
-					age
-					primaryOccupations	
-					dateOfBirth {
-						year
-						month
-						day
-					}
-					name {
-						full
-					}
-					image {
-						large
-					}
+		url := "https://graphql.anilist.co"
+		method := "POST"
 
-					characters(sort: FAVOURITES_DESC, page: 1, perPage: 3 ) {
-						nodes {
-							id
-							name {
-								full
-							}
-							media(sort: POPULARITY_DESC) {
-								nodes {
-									id
-									title {
-										romaji
-										english
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-		`)
-		var graphqlResponse AniStaffData
-		if err := graphqlClient.Run(context.Background(), graphqlRequest, &graphqlResponse); err != nil {
+		payload := strings.NewReader("{\"query\":\"query { Staff(search: \\\"" + clipped + "\\\", sort: SEARCH_MATCH ) { id gender age primaryOccupations dateOfBirth { year month day } name { full } image { large } characters(sort: FAVOURITES_DESC, page: 1, perPage: 3 ) { nodes { id name { full } media(sort: POPULARITY_DESC) { nodes { id title { romaji english } } } } } } }\",\"variables\":{}}")
+		client := &http.Client{}
+		req, err := http.NewRequest(method, url, payload)
+
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		req.Header.Add("Content-Type", "application/json")
+
+		res, err := client.Do(req)
+		if err != nil {
 			log.Println(err.Error())
 			s.ChannelMessageSend(m.ChannelID, "Person not found!")
 			return
 		}
+		defer res.Body.Close()
+
+		body, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		var response AniStaffData
+
+		if err := json.Unmarshal(body, &response); err != nil {
+			log.Println(err.Error())
+			return
+		}
+		graphqlResponse := response.Data
 
 		var occupations string
 		for i, s := range graphqlResponse.Staff.PrimaryOccupations {
@@ -601,42 +587,39 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 	if strings.HasPrefix(m.Content, "?anichar ") {
 		clipped := strings.Replace(m.Content, "?anichar ", "", 1)
-		graphqlClient := graphql.NewClient("https://graphql.anilist.co")
-		graphqlRequest := graphql.NewRequest(`
-			{
-				Character(search: "` + clipped + `", sort: SEARCH_MATCH){
-					id
-					gender
-					age
-					name {
-						full
-					}
-					dateOfBirth {
-						year
-					  	month
-					  	day
-					}
-					image {
-					  	large
-					}
-					media(sort: POPULARITY_DESC, page: 1, perPage: 3){
-					  	nodes{
-							id
-							title {
-						  		english
-						  		romaji
-							}
-					  	}
-					}	
-				}
-			}
-		`)
-		var graphqlResponse AniCharData
-		if err := graphqlClient.Run(context.Background(), graphqlRequest, &graphqlResponse); err != nil {
-			log.Println(err.Error())
-			s.ChannelMessageSend(m.ChannelID, "Character not found!")
+		url := "https://graphql.anilist.co"
+		method := "POST"
+
+		payload := strings.NewReader("{\"query\":\" query { Character(search: \\\"" + clipped + "\\\", sort: SEARCH_MATCH){ id gender age name { full } dateOfBirth { year month day } image { large } media(sort: POPULARITY_DESC, page: 1, perPage: 3){ nodes{ id title { english romaji } } } } }\",\"variables\":{}}")
+		client := &http.Client{}
+		req, err := http.NewRequest(method, url, payload)
+
+		if err != nil {
+			fmt.Println(err)
 			return
 		}
+		req.Header.Add("Content-Type", "application/json")
+
+		res, err := client.Do(req)
+		if err != nil {
+			log.Println(err.Error())
+			s.ChannelMessageSend(m.ChannelID, "Anime not found!")
+			return
+		}
+		defer res.Body.Close()
+
+		body, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		var response AniCharData
+
+		if err := json.Unmarshal(body, &response); err != nil {
+			log.Println(err.Error())
+			return
+		}
+		graphqlResponse := response.Data
 
 		var birth string
 		if graphqlResponse.Character.DateOfBirth.Day != 0 {
