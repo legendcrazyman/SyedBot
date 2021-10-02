@@ -444,8 +444,8 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 		s.ChannelMessageSendEmbed(m.ChannelID, embed)
 	}
 
-	if strings.HasPrefix(m.Content, "?aniperson ") {
-		clipped := strings.Replace(m.Content, "?aniperson ", "", 1)
+	if strings.HasPrefix(m.Content, "?anistaff ") {
+		clipped := strings.Replace(m.Content, "?anistaff ", "", 1)
 		graphqlClient := graphql.NewClient("https://graphql.anilist.co")
 		graphqlRequest := graphql.NewRequest(`
 			{
@@ -507,7 +507,10 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 		var birth string
 		if graphqlResponse.Staff.DateOfBirth.Day != 0 {
-			birth = "\n**Birth: **" + strconv.Itoa(graphqlResponse.Staff.DateOfBirth.Day) + "/" + strconv.Itoa(graphqlResponse.Staff.DateOfBirth.Month) + "/" + strconv.Itoa(graphqlResponse.Staff.DateOfBirth.Year)
+			birth = "\n**Birth: **" + strconv.Itoa(graphqlResponse.Staff.DateOfBirth.Day) + " " + time.Month(graphqlResponse.Staff.DateOfBirth.Month).String()
+			if graphqlResponse.Staff.DateOfBirth.Year != 0 {
+				birth += " " + strconv.Itoa(graphqlResponse.Staff.DateOfBirth.Year)
+			}
 		} else {
 			birth = ""
 		}
@@ -598,9 +601,9 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 		var birth string
 		if graphqlResponse.Character.DateOfBirth.Day != 0 {
-			birth = "\n\n**Birth: **" + strconv.Itoa(graphqlResponse.Character.DateOfBirth.Day) + "/" + strconv.Itoa(graphqlResponse.Character.DateOfBirth.Month)
+			birth = "\n\n	**Birth: **" + strconv.Itoa(graphqlResponse.Character.DateOfBirth.Day) + " " + time.Month(graphqlResponse.Character.DateOfBirth.Month).String()
 			if graphqlResponse.Character.DateOfBirth.Year != 0 {
-				birth += "/" + strconv.Itoa(graphqlResponse.Character.DateOfBirth.Year)
+				birth += " " + strconv.Itoa(graphqlResponse.Character.DateOfBirth.Year)
 			}
 		} else {
 			birth = ""
