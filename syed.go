@@ -283,6 +283,66 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 			currenttime := time.Now().UTC()
 			convtime := currenttime.Add(1000000000 * time.Duration(timeResponse.GmtOffset)) // rofl
 			s.ChannelMessageSend(m.ChannelID, fmt.Sprintf("It is %01d", convtime.Hour())+":"+fmt.Sprintf("%02d", convtime.Minute())+" in "+geoResponse.Standard.City+", "+geoResponse.Standard.Countryname)
+		} else if strings.HasPrefix(clipped, "until ") {
+			clipped = strings.Replace(clipped, "until ", "", 1)
+			var hours string
+			var minutes string
+			if strings.Contains(clipped, ":") {
+				if string(clipped[1]) == ":" {
+					hours += string(clipped[0])
+					minutes += string(clipped[2]) + string(clipped[3])
+				} else if string(clipped[2]) == ":" {
+					hours += string(clipped[0]) + string(clipped[1])
+					minutes += string(clipped[3]) + string(clipped[4])
+				}
+			} else {
+				if len(clipped) == 1 {
+					hours += string(clipped[0])
+					minutes = "0"
+				} else if len(clipped) == 2 {
+					hours += string(clipped[0]) + string(clipped[1])
+					minutes = "0"
+				} else if len(clipped) == 3 {
+					hours += string(clipped[0])
+					minutes += string(clipped[1]) + string(clipped[2])
+				} else if len(clipped) == 4 {
+					hours += string(clipped[0]) + string(clipped[1])
+					minutes += string(clipped[2]) + string(clipped[3])
+				}
+			}
+			hoursint, err := strconv.Atoi(hours)
+			if err != nil {
+				log.Println(err.Error())
+				s.ChannelMessageSend(m.ChannelID, "Invalid Format")
+				return
+			} else if hoursint > 23 {
+				s.ChannelMessageSend(m.ChannelID, "Invalid Time")
+				return
+			}
+			minutesint, err := strconv.Atoi(minutes)
+			if err != nil {
+				log.Println(err.Error())
+				s.ChannelMessageSend(m.ChannelID, "Invalid Format")
+				return
+			} else if minutesint > 59 {
+				s.ChannelMessageSend(m.ChannelID, "Invalid Time")
+				return
+			}
+			currenttime := time.Now().UTC()
+			target := time.Date(currenttime.Year(), currenttime.Month(), currenttime.Day(), hoursint, minutesint, 0, 0, currenttime.Location())
+			timeuntil := int(time.Until(target).Minutes())
+			if timeuntil < 0 {
+				timeuntil += 1440
+			}
+			var output string
+			if int(timeuntil/60) != 0 {
+				output = strconv.Itoa(timeuntil/60) + " hours, " + strconv.Itoa(timeuntil%60) + " minutes"
+			} else if int(timeuntil%60) != 0 {
+				output = strconv.Itoa(timeuntil%60) + " minutes"
+			} else {
+				output = "Right freaking now"
+			}
+			s.ChannelMessageSend(m.ChannelID, output)
 		} else {
 			zone, err := time.LoadLocation(clipped)
 			if err != nil {
@@ -296,68 +356,6 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 			//rats
 		}
 
-	}
-
-	if strings.HasPrefix(m.Content, "?timeuntil ") {
-		clipped := strings.Replace(m.Content, "?timeuntil ", "", 1)
-		var hours string
-		var minutes string
-		if strings.Contains(clipped, ":") {
-			if string(clipped[1]) == ":" {
-				hours += string(clipped[0])
-				minutes += string(clipped[2]) + string(clipped[3])
-			} else if string(clipped[2]) == ":" {
-				hours += string(clipped[0]) + string(clipped[1])
-				minutes += string(clipped[3]) + string(clipped[4])
-			}
-		} else {
-			if len(clipped) == 1 {
-				hours += string(clipped[0])
-				minutes = "0"
-			} else if len(clipped) == 2 {
-				hours += string(clipped[0]) + string(clipped[1])
-				minutes = "0"
-			} else if len(clipped) == 3 {
-				hours += string(clipped[0])
-				minutes += string(clipped[1]) + string(clipped[2])
-			} else if len(clipped) == 4 {
-				hours += string(clipped[0]) + string(clipped[1])
-				minutes += string(clipped[2]) + string(clipped[3])
-			}
-		}
-		hoursint, err := strconv.Atoi(hours)
-		if err != nil {
-			log.Println(err.Error())
-			s.ChannelMessageSend(m.ChannelID, "Invalid Format")
-			return
-		} else if hoursint > 23 {
-			s.ChannelMessageSend(m.ChannelID, "Invalid Time")
-			return
-		}
-		minutesint, err := strconv.Atoi(minutes)
-		if err != nil {
-			log.Println(err.Error())
-			s.ChannelMessageSend(m.ChannelID, "Invalid Format")
-			return
-		} else if minutesint > 59 {
-			s.ChannelMessageSend(m.ChannelID, "Invalid Time")
-			return
-		}
-		currenttime := time.Now().UTC()
-		target := time.Date(currenttime.Year(), currenttime.Month(), currenttime.Day(), hoursint, minutesint, 0, 0, currenttime.Location())
-		timeuntil := int(time.Until(target).Minutes())
-		if timeuntil < 0 {
-			timeuntil += 1440
-		}
-		var output string
-		if int(timeuntil/60) != 0 {
-			output = strconv.Itoa(timeuntil/60) + " hours, " + strconv.Itoa(timeuntil%60) + " minutes"
-		} else if int(timeuntil%60) != 0 {
-			output = strconv.Itoa(timeuntil%60) + " minutes"
-		} else {
-			output = "Right freaking now"
-		}
-		s.ChannelMessageSend(m.ChannelID, output)
 	}
 
 	if strings.HasPrefix(m.Content, "?wholesome ") {
