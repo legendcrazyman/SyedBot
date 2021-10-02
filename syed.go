@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"math/rand"
@@ -175,16 +176,75 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 		s.ChannelMessageSend(m.ChannelID, "shid")
 	}
 
-	if m.Content == "syed" {
-		s.ChannelMessageSend(m.ChannelID, "ji?")
-	}
-
 	if m.Content == "salam" {
 		s.ChannelMessageSend(m.ChannelID, "salam")
 	}
 
 	if m.Content == "?github" {
 		s.ChannelMessageSend(m.ChannelID, "https://github.com/Monko2k/SyedBot")
+	}
+
+	if m.Content == "?time" {
+		currenttime := time.Now().UTC()
+		s.ChannelMessageSend(m.ChannelID, fmt.Sprintf("%01d", currenttime.Hour())+":"+fmt.Sprintf("%02d", currenttime.Minute())+" UTC")
+		//today I learned you can use Sprintf to format stuff into strings without printing
+		//rats
+	}
+
+	if strings.HasPrefix(m.Content, "?timeuntil ") {
+		clipped := strings.Replace(m.Content, "?timeuntil ", "", 1)
+		var hours string
+		var minutes string
+		if strings.Contains(clipped, ":") {
+			if string(clipped[1]) == ":" {
+				hours += string(clipped[0])
+				minutes += string(clipped[2]) + string(clipped[3])
+			} else if string(clipped[2]) == ":" {
+				hours += string(clipped[0]) + string(clipped[1])
+				minutes += string(clipped[3]) + string(clipped[4])
+			}
+		} else {
+			if len(clipped) == 3 {
+				hours += string(clipped[0])
+				minutes += string(clipped[1]) + string(clipped[2])
+			} else if len(clipped) == 4 {
+				hours += string(clipped[0]) + string(clipped[1])
+				minutes += string(clipped[2]) + string(clipped[3])
+			}
+		}
+		hoursint, err := strconv.Atoi(hours)
+		if err != nil {
+			log.Println(err.Error())
+			s.ChannelMessageSend(m.ChannelID, "Invalid Format")
+			return
+		} else if hoursint > 23 {
+			s.ChannelMessageSend(m.ChannelID, "Invalid Time")
+			return
+		}
+		minutesint, err := strconv.Atoi(minutes)
+		if err != nil {
+			log.Println(err.Error())
+			s.ChannelMessageSend(m.ChannelID, "Invalid Format")
+			return
+		} else if minutesint > 59 {
+			s.ChannelMessageSend(m.ChannelID, "Invalid Time")
+			return
+		}
+		currenttime := time.Now().UTC()
+		target := time.Date(currenttime.Year(), currenttime.Month(), currenttime.Day(), hoursint, minutesint, 0, 0, currenttime.Location())
+		timeuntil := int(time.Until(target).Minutes())
+		if timeuntil < 0 {
+			timeuntil += 1440
+		}
+		var output string
+		if int(timeuntil/60) != 0 {
+			output = strconv.Itoa(timeuntil/60) + " hours, " + strconv.Itoa(timeuntil%60) + " minutes"
+		} else if int(timeuntil%60) != 0 {
+			output = strconv.Itoa(timeuntil%60) + " minutes"
+		} else {
+			output = "Right freaking now"
+		}
+		s.ChannelMessageSend(m.ChannelID, output)
 	}
 
 	if strings.HasPrefix(m.Content, "?wholesome ") {
@@ -214,26 +274,12 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 		s.ChannelMessageSend(m.ChannelID, "holy shit guys, "+clipped)
 	}
 
-	imsearch, err := regexp.Compile(`^((.|\n)*?)( |^)[iI]'?[mM] `)
+	imsearch, err := regexp.Compile(`^((.|\n)*?)( |^)(([iI]'?[mM])|[iI] [aA][mM]) `)
 	if err != nil {
 		log.Println(err.Error())
 	} else {
 		if imsearch.MatchString(m.Content) {
 			s.ChannelMessageSend(m.ChannelID, "hi "+imsearch.ReplaceAllString(m.Content, ""))
-		}
-	}
-
-	if m.Content == "dsd" {
-		s.MessageReactionAdd(m.ChannelID, m.ID, "✅")
-		time.Sleep(2 * time.Second)
-		reactionMessage, _ := s.ChannelMessage(m.ChannelID, m.ID)
-
-		for _, x := range reactionMessage.Reactions {
-			log.Println(reactionMessage.Reactions[0].Emoji)
-			if x.Emoji.Name == "✅" && x.Count > 1 {
-				s.ChannelMessageSend(m.ChannelID, "yeaaah")
-			}
-			log.Println(x.Emoji.Name)
 		}
 	}
 
