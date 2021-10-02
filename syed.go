@@ -204,7 +204,13 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 				minutes += string(clipped[3]) + string(clipped[4])
 			}
 		} else {
-			if len(clipped) == 3 {
+			if len(clipped) == 1 {
+				hours += string(clipped[0])
+				minutes = "0"
+			} else if len(clipped) == 2 {
+				hours += string(clipped[0]) + string(clipped[1])
+				minutes = "0"
+			} else if len(clipped) == 3 {
 				hours += string(clipped[0])
 				minutes += string(clipped[1]) + string(clipped[2])
 			} else if len(clipped) == 4 {
