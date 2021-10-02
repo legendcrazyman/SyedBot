@@ -23,6 +23,8 @@ import (
 type Config struct {
 	DiscordToken string
 	Twitter      Twitter
+	Geocode      string
+	TimeZoneDB   string
 }
 
 type Twitter struct {
@@ -128,6 +130,44 @@ type CharData struct {
 	Character Character `json:"Character"`
 }
 
+type GeoData struct {
+	Standard struct {
+		Stnumber string `json:"stnumber"`
+		Addresst struct {
+		} `json:"addresst"`
+		Postal struct {
+		} `json:"postal"`
+		Region      string `json:"region"`
+		Prov        string `json:"prov"`
+		City        string `json:"city"`
+		Countryname string `json:"countryname"`
+		Confidence  string `json:"confidence"`
+	} `json:"standard"`
+	Longt string `json:"longt"`
+	Alt   struct {
+	} `json:"alt"`
+	Elevation struct {
+	} `json:"elevation"`
+	RemainingCredits string `json:"remaining_credits"`
+	Latt             string `json:"latt"`
+}
+
+type GeoTimeData struct {
+	Status           string `json:"status"`
+	Message          string `json:"message"`
+	CountryCode      string `json:"countryCode"`
+	CountryName      string `json:"countryName"`
+	ZoneName         string `json:"zoneName"`
+	Abbreviation     string `json:"abbreviation"`
+	GmtOffset        int    `json:"gmtOffset"`
+	Dst              string `json:"dst"`
+	ZoneStart        int    `json:"zoneStart"`
+	ZoneEnd          int    `json:"zoneEnd"`
+	NextAbbreviation string `json:"nextAbbreviation"`
+	Timestamp        int    `json:"timestamp"`
+	Formatted        string `json:"formatted"`
+}
+
 var config Config
 
 func init() {
@@ -186,11 +226,97 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 		s.ChannelMessageSend(m.ChannelID, "https://github.com/Monko2k/SyedBot")
 	}
 
-	if m.Content == "?time" {
-		currenttime := time.Now().UTC()
-		s.ChannelMessageSend(m.ChannelID, fmt.Sprintf("%01d", currenttime.Hour())+":"+fmt.Sprintf("%02d", currenttime.Minute())+" UTC")
+	if strings.HasPrefix(m.Content, "?time") {
+		clipped := strings.Replace(m.Content, "?time", "", 1)
+		clipped = strings.Replace(clipped, " ", "", 1)
+		zone, err := time.LoadLocation(clipped)
+		if err != nil {
+			log.Println(err.Error())
+			s.ChannelMessageSend(m.ChannelID, "Invalid timezone (currently this command only works with TimeZoneDB names (https://timezonedb.com/)")
+			return
+		}
+		currenttime := time.Now().In(zone)
+		s.ChannelMessageSend(m.ChannelID, fmt.Sprintf("It is %01d", currenttime.Hour())+":"+fmt.Sprintf("%02d", currenttime.Minute())+" "+zone.String())
 		//today I learned you can use Sprintf to format stuff into strings without printing
 		//rats
+	}
+
+	if strings.HasPrefix(m.Content, "?test ") {
+		clipped := strings.Replace(m.Content, "?time ", "", 1)
+		clipped = strings.ReplaceAll(clipped, " ", "%20")
+		url := "https://geocode.xyz"
+		method := "POST"
+
+		payload_loc := strings.NewReader("locate=" + clipped + "&json=1&Key=" + config.Geocode)
+
+		client := &http.Client{}
+		req, err := http.NewRequest(method, url, payload_loc)
+
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Add("Cookie", "__cflb=0H28vTE11mXeuU6nLEGMumyL4X6iAPif9KvtBGzZSfF; geocode.xyz=686140097; xyzh=xyzh")
+
+		geores, err := client.Do(req)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		defer geores.Body.Close()
+
+		geobody, err := ioutil.ReadAll(geores.Body)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		var geoResponse GeoData
+
+		if err := json.Unmarshal(geobody, &geoResponse); err != nil {
+			log.Println(err.Error())
+			return
+
+		}
+
+		if geoResponse.Longt == "0.00000" {
+			log.Println("first thign failed")
+			return
+		}
+
+		url = "http://api.timezonedb.com/v2.1/get-time-zone?key=" + config.TimeZoneDB + "&by=position&format=json&lat=" + geoResponse.Latt + "&lng=" + geoResponse.Longt
+		method = "GET"
+
+		payload_time := strings.NewReader("")
+		req, err = http.NewRequest(method, url, payload_time)
+
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		timeres, err := client.Do(req)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		defer timeres.Body.Close()
+
+		timebody, err := ioutil.ReadAll(timeres.Body)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		var timeResponse GeoTimeData
+		if err := json.Unmarshal(timebody, &timeResponse); err != nil {
+			log.Println(err.Error())
+			return
+		}
+		log.Println(timeResponse.GmtOffset)
+
+		currenttime := time.Now().UTC()
+		convtime := currenttime.Add(1000000000 * time.Duration(timeResponse.GmtOffset)) // rofl
+		s.ChannelMessageSend(m.ChannelID, fmt.Sprintf("It is %01d", convtime.Hour())+":"+fmt.Sprintf("%02d", convtime.Minute())+" in "+geoResponse.Standard.City+", "+geoResponse.Standard.Countryname)
 	}
 
 	if strings.HasPrefix(m.Content, "?timeuntil ") {
