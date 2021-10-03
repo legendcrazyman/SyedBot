@@ -133,18 +133,17 @@ func Anime(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 		Color:       color,
 		Description: subtitle + format + description + season + episodes + averageScore + airingTime,
 		URL:         "https://anilist.co/anime/" + strconv.Itoa(graphqlResponse.Media.ID),
-		Fields: []*discordgo.MessageEmbedField{
-			&discordgo.MessageEmbedField{
-				Name:   "Genres",
-				Value:  genres,
-				Inline: false,
-			},
-		},
 
 		Image: &discordgo.MessageEmbedImage{
 			URL: graphqlResponse.Media.CoverImage.Large,
 		},
 		Title: title,
+	}
+	if genres != "" {
+		embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
+			Name:  "\n\nGenres",
+			Value: genres,
+		})
 	}
 
 	s.ChannelMessageSendEmbed(m.ChannelID, embed)	
