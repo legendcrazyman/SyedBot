@@ -16,6 +16,7 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 	if m.Author.ID == s.State.User.ID {
 		return
 	}
+	log.Println(len(m.Attachments))
 	log.Println(m.Content)
 
 	if m.Content == "piss" {
