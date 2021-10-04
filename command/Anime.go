@@ -82,11 +82,14 @@ func Anime(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 		airingTime = "\n**Next Airing: **Episode " + strconv.Itoa(graphqlResponse.Media.NextAiringEpisode.Episode) + " on " + convtime.Month().String() + " " + strconv.Itoa(convtime.Day()) + " " + strconv.Itoa(convtime.Year())
 	}
 	var episodes string
-	if graphqlResponse.Media.Format != "MOVIE" && graphqlResponse.Media.Episodes != 0 {
-		episodes = "\n**Episodes:  **" + strconv.Itoa(graphqlResponse.Media.Episodes)
-	} else {
-		episodes = "\n**Not Yet Aired**"
+	if graphqlResponse.Media.Format != "MOVIE" {
+		if graphqlResponse.Media.Episodes != 0 {
+			episodes = "\n**Episodes:  **" + strconv.Itoa(graphqlResponse.Media.Episodes)
+		} else {
+			episodes = "\n**Not Yet Aired**"
+		}
 	}
+	
 	description := strings.Split(graphqlResponse.Media.Description, "<br>")[0] + "\n\n" // only use everything before the first linebreak returned by description
 
 	var characters string
@@ -285,7 +288,7 @@ func AniChar(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 
 	var birth string
 	if graphqlResponse.Character.DateOfBirth.Day != 0 {
-		birth = "\n\n	**Birth: **" + strconv.Itoa(graphqlResponse.Character.DateOfBirth.Day) + " " + time.Month(graphqlResponse.Character.DateOfBirth.Month).String()
+		birth = "\n\n**Birth: **" + strconv.Itoa(graphqlResponse.Character.DateOfBirth.Day) + " " + time.Month(graphqlResponse.Character.DateOfBirth.Month).String()
 		if graphqlResponse.Character.DateOfBirth.Year != 0 {
 			birth += " " + strconv.Itoa(graphqlResponse.Character.DateOfBirth.Year)
 		}
