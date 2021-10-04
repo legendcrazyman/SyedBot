@@ -48,7 +48,16 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 	if strings.HasPrefix(m.Content, "?stock ") {
 		clipped := strings.Replace(m.Content, "?stock ", "", 1)
 		go commands.Stock(s, m, clipped)
-		
+	}
+
+	if strings.HasPrefix(m.Content, "?crypto ") {
+		clipped := strings.Replace(m.Content, "?crypto ", "", 1)
+		clipped = strings.ToLower(clipped)
+		droppedchars, _ := regexp.Compile(`[^a-z0-9 _-]`)
+		clipped = droppedchars.ReplaceAllString(clipped, "")
+		spaces, _ := regexp.Compile(` `)
+		clipped = spaces.ReplaceAllString(clipped, "-")
+		go commands.Crypto(s, m, clipped)
 	}
 
 	if strings.HasPrefix(m.Content, "?wholesome ") {
