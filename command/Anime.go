@@ -64,12 +64,9 @@ func Anime(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 		title = graphqlResponse.Media.Title.English
 		if graphqlResponse.Media.Title.English != graphqlResponse.Media.Title.Romaji {
 			subtitle = "**" + graphqlResponse.Media.Title.Romaji + "**\n"
-		} else {
-			subtitle = ""
 		}
 	} else {
 		title = graphqlResponse.Media.Title.Romaji
-		subtitle = ""
 	}
 	var genres string
 	for i, s := range graphqlResponse.Media.Genres {
@@ -83,13 +80,9 @@ func Anime(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 	if graphqlResponse.Media.Status == "RELEASING" {
 		convtime := time.Unix(int64(graphqlResponse.Media.NextAiringEpisode.AiringAt), 0)
 		airingTime = "\n**Next Airing: **Episode " + strconv.Itoa(graphqlResponse.Media.NextAiringEpisode.Episode) + " on " + convtime.Month().String() + " " + strconv.Itoa(convtime.Day()) + " " + strconv.Itoa(convtime.Year())
-	} else {
-		airingTime = ""
 	}
 	var episodes string
-	if graphqlResponse.Media.Format == "MOVIE" {
-		episodes = ""
-	} else if graphqlResponse.Media.Episodes != 0 {
+	if graphqlResponse.Media.Format != "MOVIE" && graphqlResponse.Media.Episodes != 0 {
 		episodes = "\n**Episodes:  **" + strconv.Itoa(graphqlResponse.Media.Episodes)
 	} else {
 		episodes = "\n**Not Yet Aired**"
@@ -119,8 +112,6 @@ func Anime(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 	var season string
 	if graphqlResponse.Media.Season != "" {
 		season = "**Season:  **" + strings.Title(strings.ToLower(graphqlResponse.Media.Season)+" "+strconv.Itoa(graphqlResponse.Media.SeasonYear))
-	} else {
-		season = ""
 	}
 	var averageScore string
 	if graphqlResponse.Media.AverageScore != 0 {
@@ -202,22 +193,16 @@ func AniStaff(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 		if graphqlResponse.Staff.DateOfBirth.Year != 0 {
 			birth += " " + strconv.Itoa(graphqlResponse.Staff.DateOfBirth.Year)
 		}
-	} else {
-		birth = ""
 	}
 
 	var age string
 	if graphqlResponse.Staff.Age != 0 {
 		age = "\n**Age: **" + strconv.Itoa(graphqlResponse.Staff.Age)
-	} else {
-		age = ""
 	}
 
 	var gender string
 	if graphqlResponse.Staff.Gender != "" {
 		gender = "\n**Gender: **" + graphqlResponse.Staff.Gender
-	} else {
-		gender = ""
 	}
 
 	var roles string
@@ -255,7 +240,7 @@ func AniChar(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 	url := "https://graphql.anilist.co"
 	method := "POST"
 
-	payload := strings.NewReader("{\"query\":\" query { Character(search: \\\"" + arg + "\\\", sort: SEARCH_MATCH){ id gender age name { full } dateOfBirth { year month day } image { large } media(sort: POPULARITY_DESC, page: 1, perPage: 3){ nodes{ id title { english romaji } } } } }\",\"variables\":{}}")
+	payload := strings.NewReader("{\"query\":\" query { Character(search: \\\"" + arg + "\\\", sort: SEARCH_MATCH){ id gender age name { full } dateOfBirth { year month day } image { large } media(sort: POPULARITY_DESC, page: 1, perPage: 3){ nodes{ id title { english romaji } } edges { node { id } voiceActors (language: JAPANESE sort: FAVOURITES_DESC){ id name { full } } } } } }\",\"variables\":{}}")
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, payload)
 
@@ -292,23 +277,23 @@ func AniChar(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 		if graphqlResponse.Character.DateOfBirth.Year != 0 {
 			birth += " " + strconv.Itoa(graphqlResponse.Character.DateOfBirth.Year)
 		}
-	} else {
-		birth = ""
 	}
 
 	var age string
 	if graphqlResponse.Character.Age != "" {
 		age = "\n**Age: **" + graphqlResponse.Character.Age
-	} else {
-		age = ""
 	}
 
 	var gender string
 	if graphqlResponse.Character.Gender != "" {
 		gender = "\n**Gender: **" + graphqlResponse.Character.Gender
-	} else {
-		gender = ""
 	}
+
+	var portrayal string
+	if graphqlResponse.Character.Media.Edges[0].VoiceActors[0].Name.Full != "" { // no idea if this is correct lol
+		portrayal += "\n**Portrayed by: **[" + graphqlResponse.Character.Media.Edges[0].VoiceActors[0].Name.Full + "](https://anilist.co/staff/" + strconv.Itoa(graphqlResponse.Character.Media.Edges[0].VoiceActors[0].ID) + ")"
+	} 
+
 
 	var appearances string
 	var series string
@@ -327,7 +312,7 @@ func AniChar(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 	embed := &discordgo.MessageEmbed{
 		Author:      &discordgo.MessageEmbedAuthor{},
 		Color:       0xFFFFFF,
-		Description: series + birth + age + gender,
+		Description: series + birth + age + gender + portrayal,
 		URL:         "https://anilist.co/character/" + strconv.Itoa(graphqlResponse.Character.ID),
 		Image: &discordgo.MessageEmbedImage{
 			URL: graphqlResponse.Character.Image.Large,

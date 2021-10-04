@@ -54,13 +54,25 @@ type Nodes struct {
 	ID    int   `json:"id"`
 	Title Title `json:"title"`
 }
-type MediaNodes struct {
-	Nodes []Media `json:"nodes"`
+type MediaConnection struct {
+	Nodes []Media          `json:"nodes"`
+	Edges []VoiceActorEdge `json:"edges"`
+}
+type VoiceActorEdge struct {
+	Node        Node          `json:"node"`
+	VoiceActors []VoiceActors `json:"voiceActors"`
+}
+type Node struct {
+	ID int `json:"id"`
+}
+type VoiceActors struct {
+	ID   int  `json:"id"`
+	Name Name `json:"name"`
 }
 type CharacterNode struct {
-	ID    int        `json:"id"`
-	Name  Name       `json:"name"`
-	Media MediaNodes `json:"media"`
+	ID    int             `json:"id"`
+	Name  Name            `json:"name"`
+	Media MediaConnection `json:"media"`
 }
 type Characters struct {
 	Nodes []CharacterNode `json:"nodes"`
@@ -84,13 +96,13 @@ type AniCharData struct {
 }
 
 type Character struct {
-	ID          int         `json:"id"`
-	Gender      string      `json:"gender"`
-	Age         string      `json:"age"`
-	Name        Name        `json:"name"`
-	DateOfBirth DateOfBirth `json:"dateOfBirth"`
-	Image       Image       `json:"image"`
-	Media       MediaNodes  `json:"media"`
+	ID          int             `json:"id"`
+	Gender      string          `json:"gender"`
+	Age         string          `json:"age"`
+	Name        Name            `json:"name"`
+	DateOfBirth DateOfBirth     `json:"dateOfBirth"`
+	Image       Image           `json:"image"`
+	Media       MediaConnection `json:"media"`
 }
 type CharData struct {
 	Character Character `json:"Character"`
