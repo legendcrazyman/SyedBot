@@ -20,7 +20,7 @@ func Anime(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 	url := "https://graphql.anilist.co"
 	method := "POST"
 
-	payload := strings.NewReader("{\"query\":\"query { Media(search: \\\"" + arg + "\\\", type: ANIME, sort: SEARCH_MATCH) { id title { romaji english } type genres coverImage { large color } status season seasonYear episodes averageScore meanScore format description (asHtml: false) nextAiringEpisode { airingAt episode } } }\",\"variables\":{}}")
+	payload := strings.NewReader("{\"query\":\"query { Media(search: \\\"" + arg + "\\\", type: ANIME, sort: SEARCH_MATCH) { id title { romaji english } type genres coverImage { large color } status season seasonYear episodes averageScore meanScore format description (asHtml: false) nextAiringEpisode { airingAt episode } characters(sort:ROLE, page: 1, perPage: 4) { edges { node { id name { full } } voiceActors(language: JAPANESE) { id name { full } } } } } }\",\"variables\":{}}")
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, payload)
 
@@ -89,6 +89,11 @@ func Anime(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 	}
 	description := strings.Split(graphqlResponse.Media.Description, "<br>")[0] + "\n\n" // only use everything before the first linebreak returned by description
 
+	var characters string
+	for _, s := range graphqlResponse.Media.Characters.Edges {	
+		characters += "[" + s.Node.Name.Full + "](http://anilist.co/character/" + strconv.Itoa(s.Node.ID) + ") "
+		characters += "[(" + s.VoiceActors[0].Name.Full + ")](http://anilist.co/staff/" + strconv.Itoa(s.VoiceActors[0].ID) + ")\n"
+	}
 	re, err := regexp.Compile(`(?:<[\/a-z]*>)`)
 	if err != nil {
 		log.Println(err.Error())
@@ -134,6 +139,12 @@ func Anime(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 		embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
 			Name:  "\n\nGenres",
 			Value: genres,
+		})
+	}
+	if characters != "" {
+		embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
+			Name:  "\nCharacters",
+			Value: characters,
 		})
 	}
 
@@ -232,6 +243,7 @@ func AniStaff(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 			Value: roles,
 		})
 	}
+
 
 	s.ChannelMessageSendEmbed(m.ChannelID, embed)	
 }

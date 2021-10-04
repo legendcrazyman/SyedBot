@@ -17,23 +17,27 @@ type NextAiringEpisode struct {
 	Episode  int `json:"episode"`
 }
 type Media struct {
-	ID                int               `json:"id"`
-	Title             Title             `json:"title"`
-	Type              string            `json:"type"`
-	Genres            []string          `json:"genres"`
-	CoverImage        CoverImage        `json:"coverImage"`
-	Status            string            `json:"status"`
-	Season            string            `json:"season"`
-	SeasonYear        int               `json:"seasonYear"`
-	Episodes          int               `json:"episodes"`
-	AverageScore      int               `json:"averageScore"`
-	MeanScore         int               `json:"meanScore"`
-	Format            string            `json:"format"`
-	Description       string            `json:"description"`
-	NextAiringEpisode NextAiringEpisode `json:"nextAiringEpisode"`
+	ID                int                 `json:"id"`
+	Title             Title               `json:"title"`
+	Type              string              `json:"type"`
+	Genres            []string            `json:"genres"`
+	CoverImage        CoverImage          `json:"coverImage"`
+	Status            string              `json:"status"`
+	Season            string              `json:"season"`
+	SeasonYear        int                 `json:"seasonYear"`
+	Episodes          int                 `json:"episodes"`
+	AverageScore      int                 `json:"averageScore"`
+	MeanScore         int                 `json:"meanScore"`
+	Format            string              `json:"format"`
+	Description       string              `json:"description"`
+	NextAiringEpisode NextAiringEpisode   `json:"nextAiringEpisode"`
+	Characters        CharacterConnection `json:"characters"`
 }
 type MediaData struct {
 	Media Media `json:"Media"`
+}
+type CharacterConnection struct {
+	Edges []VoiceActorEdge `json:"edges"`
 }
 
 type AniStaffData struct {
@@ -63,7 +67,8 @@ type VoiceActorEdge struct {
 	VoiceActors []VoiceActors `json:"voiceActors"`
 }
 type Node struct {
-	ID int `json:"id"`
+	ID   int  `json:"id"`
+	Name Name `json:"name"`
 }
 type VoiceActors struct {
 	ID   int  `json:"id"`
