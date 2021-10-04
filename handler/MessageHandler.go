@@ -83,7 +83,9 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 		log.Println(err.Error())
 	} else {
 		if imsearch.MatchString(m.Content) {
-			s.ChannelMessageSend(m.ChannelID, "hi "+imsearch.ReplaceAllString(m.Content, ""))
+			if rand.Intn(101) < 20 { // should probably make this a changeable setting
+				s.ChannelMessageSend(m.ChannelID, "hi "+imsearch.ReplaceAllString(m.Content, ""))
+			}
 		}
 	}
 
