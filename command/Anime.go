@@ -289,9 +289,12 @@ func AniChar(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 		gender = "\n**Gender: **" + graphqlResponse.Character.Gender
 	}
 
+	// currently, this command displays the most favorited japanese voice actresses in the most popular media appearance
+	// afaik, there's no way to get all voice actresses across all appearances besides procedurally compiling a list
+
 	var portrayal string
-	if graphqlResponse.Character.Media.Edges[0].VoiceActors[0].Name.Full != "" { // no idea if this is correct lol
-		portrayal += "\n**Portrayed by: **[" + graphqlResponse.Character.Media.Edges[0].VoiceActors[0].Name.Full + "](https://anilist.co/staff/" + strconv.Itoa(graphqlResponse.Character.Media.Edges[0].VoiceActors[0].ID) + ")"
+	for _, s := range graphqlResponse.Character.Media.Edges[0].VoiceActors {
+		portrayal += "[" + s.Name.Full + "](https://anilist.co/staff/" + strconv.Itoa(graphqlResponse.Character.Media.Edges[0].VoiceActors[0].ID) + ")\n"
 	} 
 
 
@@ -312,7 +315,7 @@ func AniChar(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 	embed := &discordgo.MessageEmbed{
 		Author:      &discordgo.MessageEmbedAuthor{},
 		Color:       0xFFFFFF,
-		Description: series + birth + age + gender + portrayal,
+		Description: series + birth + age + gender,
 		URL:         "https://anilist.co/character/" + strconv.Itoa(graphqlResponse.Character.ID),
 		Image: &discordgo.MessageEmbedImage{
 			URL: graphqlResponse.Character.Image.Large,
@@ -323,6 +326,12 @@ func AniChar(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 		embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
 			Name:  "\n\nAppearances",
 			Value: appearances,
+		})
+	}
+	if portrayal != "" {
+		embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
+			Name:  "\nPortrayed By",
+			Value: portrayal,
 		})
 	}
 
