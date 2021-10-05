@@ -196,7 +196,7 @@ func AnimeMedia(s *discordgo.Session, m *discordgo.MessageCreate, arg string, re
 	if media.Format != "MOVIE" {
 		if media.Episodes != 0 {
 			episodes = "\n**Episodes:  **" + strconv.Itoa(media.Episodes)
-		} else {
+		} else if media.Status != "RELEASING" {
 			episodes = "\n**Not Yet Aired**"
 		}
 	}
