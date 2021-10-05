@@ -421,9 +421,12 @@ func AniChar(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 	// afaik, there's no way to get all voice actresses across all appearances besides procedurally compiling a list
 
 	var portrayal string
-	for _, s := range graphqlResponse.Character.Media.Edges[0].VoiceActors {
-		portrayal += "[" + s.Name.Full + "](https://anilist.co/staff/" + strconv.Itoa(graphqlResponse.Character.Media.Edges[0].VoiceActors[0].ID) + ")\n"
-	} 
+	if len(graphqlResponse.Character.Media.Edges) > 0 {
+		for _, s := range graphqlResponse.Character.Media.Edges[0].VoiceActors {
+			portrayal += "[" + s.Name.Full + "](https://anilist.co/staff/" + strconv.Itoa(graphqlResponse.Character.Media.Edges[0].VoiceActors[0].ID) + ")\n"
+		} 
+	}
+	
 
 
 	var appearances string
