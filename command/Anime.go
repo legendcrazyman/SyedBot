@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -16,11 +17,105 @@ import (
 )
 
 
+
+
 func Anime(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
+	query :=  "search: \\\"" + arg + "\\\", type: ANIME, sort: SEARCH_MATCH"
+	AnimeMedia(s, m, query, 1)
+}
+ 
+func AniRand(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
+
+	// randomizing anime by choosing a random sort order
+	// this list of orders should probably go somewhere else
+	orders := [18]string {
+		"ID",
+		"TITLE_ROMAJI",
+		"TITLE_ENGLISH",
+		"TITLE_NATIVE",
+		"TYPE",
+		"FORMAT",
+		"START_DATE",
+		"END_DATE",
+		"SCORE",
+		"POPULARITY",
+		"TRENDING",
+		"EPISODES",
+		"DURATION",
+		"STATUS",
+		"CHAPTERS",
+		"VOLUMES",
+		"UPDATED_AT",
+		"FAVOURITES",
+	}
+	order := orders[rand.Intn(18)]
+	if rand.Intn(2) == 1 {
+		order += "_DESC"
+	}
+	query := "type: ANIME, sort: " + order 
+	yearRangeParse, _ := regexp.Compile(`[yY]:[0-9]{4}-[0-9]{4}`)
+	yearParse, _ := regexp.Compile(`[yY]:[0-9]{4}`)
+	scoreRangeParse, _ := regexp.Compile(`[sS]:[0-9]{1,2}-[0-9]{1,2}`) // this regex does not handle values greater than 99 (highest score on anilist is 92)
+	scoreParse, _ := regexp.Compile(`[sS]:[0-9]{1,2}`)
+	genreParse, _ := regexp.Compile(`[gG]:.+?(([yY]:)|([sS]:)|$)`)
+	if yearRangeParse.MatchString(arg) {
+		yearRange := yearRangeParse.FindString(arg)
+		yearRange = strings.Replace(strings.ToLower(yearRange), "y:", "", 1)
+		years := strings.Split(yearRange, "-")
+		query += ", startDate_greater: " + years[0] + "0000"
+		query += ", startDate_lesser: " + years[1] + "0000"
+	} else if yearParse.MatchString(arg) {
+		year := yearParse.FindString(arg)
+		year = strings.Replace(strings.ToLower(year), "y:", "", 1)
+		query += ", startDate_greater: " + year + "0000"
+	}
+	if scoreRangeParse.MatchString(arg) {
+		scoreRange := scoreRangeParse.FindString(arg)
+		scoreRange = strings.Replace(strings.ToLower(scoreRange), "s:", "", 1)
+		years := strings.Split(scoreRange, "-")
+		query += ", averageScore_greater: " + years[0]
+		query += ", averageScore_lesser: " + years[1]
+	} else if scoreParse.MatchString(arg) {
+		score := scoreParse.FindString(arg)
+		score = strings.Replace(strings.ToLower(score), "s:", "", 1)
+		query += ", averageScore_greater: " + score
+	}
+	if genreParse.MatchString(arg) {
+		genreArg := genreParse.FindString(arg)
+		genreArg = strings.Replace(strings.ToLower(genreArg), "g:", "", 1)
+		genreArg = strings.Replace(genreArg, "s:", "", 1)
+		genreArg = strings.Replace(genreArg, "y:", "", 1)
+		var divider string
+		if strings.Contains(genreArg, ", ") {
+			divider = ", "
+		} else if strings.Contains(genreArg, ",") {
+			divider = ","
+		} else {
+			divider = " "
+		}
+		genres := strings.Split(genreArg, divider)
+		for i, s := range genres {
+			if i == 0 {
+				query += ", genre_in: ["
+			}
+			if s != "" {
+				query += "\\\"" + s + "\\\","
+			}
+			if i == len(genres) - 1 {
+				query += "]"
+			}
+		}
+	}
+	//log.Println(query)
+	AnimeMedia(s, m, query, 3)
+}
+
+
+func AnimeMedia(s *discordgo.Session, m *discordgo.MessageCreate, arg string, results int) {
 	url := "https://graphql.anilist.co"
 	method := "POST"
 
-	payload := strings.NewReader("{\"query\":\"query { Media(search: \\\"" + arg + "\\\", type: ANIME, sort: SEARCH_MATCH) { id title { romaji english } type genres coverImage { large color } status season seasonYear episodes averageScore meanScore format description (asHtml: false) nextAiringEpisode { airingAt episode } characters(sort:ROLE, page: 1, perPage: 4) { edges { node { id name { full } } voiceActors(language: JAPANESE) { id name { full } } } } } }\",\"variables\":{}}")
+	payload := strings.NewReader("{\"query\":\"query { Page(page: 1, perPage: " + strconv.Itoa(results) + ") { media(" + arg + ") { id title { romaji english } type genres coverImage { large color } status season seasonYear episodes averageScore meanScore format description (asHtml: false) nextAiringEpisode { airingAt episode } characters(sort:ROLE, page: 1, perPage: 4) { edges { node { id name { full } } voiceActors(language: JAPANESE) { id name { full } } } } } } }\",\"variables\":{}}")
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, payload)
 
@@ -51,25 +146,41 @@ func Anime(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 	}
 	graphqlResponse := response.Data
 
+	var index int
+	if results == 1 {
+		index = 0
+	} else {
+		max := results
+		if len(graphqlResponse.Page.Media) < results {
+			max = len(graphqlResponse.Page.Media)
+		}
+		if max < 1 {
+			s.ChannelMessageSend(m.ChannelID, "None found!")
+			return
+		}
+		index = rand.Intn(max)
+	}
+	media := graphqlResponse.Page.Media[index]
+
 	color := 0xFFFFFF
-	if graphqlResponse.Media.CoverImage.Color != "" {
-		colorhexstring := strings.Replace(graphqlResponse.Media.CoverImage.Color, "#", "", 1)
+	if media.CoverImage.Color != "" {
+		colorhexstring := strings.Replace(media.CoverImage.Color, "#", "", 1)
 		colorvalue, _ := strconv.ParseInt(colorhexstring, 16, 64)
 		color = int(colorvalue)
 	}
 
 	var title string
 	var subtitle string
-	if graphqlResponse.Media.Title.English != "" {
-		title = graphqlResponse.Media.Title.English
-		if graphqlResponse.Media.Title.English != graphqlResponse.Media.Title.Romaji {
-			subtitle = "**" + graphqlResponse.Media.Title.Romaji + "**\n"
+	if media.Title.English != "" {
+		title = media.Title.English
+		if media.Title.English != media.Title.Romaji {
+			subtitle = "**" + media.Title.Romaji + "**\n"
 		}
 	} else {
-		title = graphqlResponse.Media.Title.Romaji
+		title = media.Title.Romaji
 	}
 	var genres string
-	for i, s := range graphqlResponse.Media.Genres {
+	for i, s := range media.Genres {
 		if i == 0 {
 			genres += s
 		} else {
@@ -77,25 +188,27 @@ func Anime(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 		}
 	}
 	var airingTime string
-	if graphqlResponse.Media.Status == "RELEASING" {
-		convtime := time.Unix(int64(graphqlResponse.Media.NextAiringEpisode.AiringAt), 0)
-		airingTime = "\n**Next Airing: **Episode " + strconv.Itoa(graphqlResponse.Media.NextAiringEpisode.Episode) + " on " + convtime.Month().String() + " " + strconv.Itoa(convtime.Day()) + " " + strconv.Itoa(convtime.Year())
+	if media.Status == "RELEASING" {
+		convtime := time.Unix(int64(media.NextAiringEpisode.AiringAt), 0)
+		airingTime = "\n**Next Airing: **Episode " + strconv.Itoa(media.NextAiringEpisode.Episode) + " on " + convtime.Month().String() + " " + strconv.Itoa(convtime.Day()) + " " + strconv.Itoa(convtime.Year())
 	}
 	var episodes string
-	if graphqlResponse.Media.Format != "MOVIE" {
-		if graphqlResponse.Media.Episodes != 0 {
-			episodes = "\n**Episodes:  **" + strconv.Itoa(graphqlResponse.Media.Episodes)
+	if media.Format != "MOVIE" {
+		if media.Episodes != 0 {
+			episodes = "\n**Episodes:  **" + strconv.Itoa(media.Episodes)
 		} else {
 			episodes = "\n**Not Yet Aired**"
 		}
 	}
 	
-	description := strings.Split(graphqlResponse.Media.Description, "<br>")[0] + "\n\n" // only use everything before the first linebreak returned by description
+	description := strings.Split(media.Description, "<br>")[0] + "\n\n" // only use everything before the first linebreak returned by description
 
 	var characters string
-	for _, s := range graphqlResponse.Media.Characters.Edges {	
+	for _, s := range media.Characters.Edges {	
 		characters += "[" + s.Node.Name.Full + "](http://anilist.co/character/" + strconv.Itoa(s.Node.ID) + ") "
-		characters += "[(" + s.VoiceActors[0].Name.Full + ")](http://anilist.co/staff/" + strconv.Itoa(s.VoiceActors[0].ID) + ")\n"
+		if len(s.VoiceActors) > 0 {
+			characters += "[(" + s.VoiceActors[0].Name.Full + ")](http://anilist.co/staff/" + strconv.Itoa(s.VoiceActors[0].ID) + ")\n"
+		}
 	}
 	re, err := regexp.Compile(`(?:<[\/a-z]*>)`)
 	if err != nil {
@@ -103,7 +216,7 @@ func Anime(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 	}
 	description = re.ReplaceAllString(description, "")
 	var format string
-	switch graphqlResponse.Media.Format {
+	switch media.Format {
 	case "TV":
 		format = "*TV Series*\n\n"
 	case "TV_SHORT":
@@ -115,26 +228,26 @@ func Anime(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 	case "MUSIC":
 		format = "*Music*\n\n"
 	default:
-		format = "*" + graphqlResponse.Media.Format + "*\n\n"
+		format = "*" + media.Format + "*\n\n"
 	}
 	var season string
-	if graphqlResponse.Media.Season != "" {
-		season = "**Season:  **" + strings.Title(strings.ToLower(graphqlResponse.Media.Season)+" "+strconv.Itoa(graphqlResponse.Media.SeasonYear))
+	if media.Season != "" {
+		season = "**Season:  **" + strings.Title(strings.ToLower(media.Season)+" "+strconv.Itoa(media.SeasonYear))
 	}
 	var averageScore string
-	if graphqlResponse.Media.AverageScore != 0 {
-		averageScore = "\n**Average Score:  **" + strconv.Itoa(graphqlResponse.Media.AverageScore) + "%"
+	if media.AverageScore != 0 {
+		averageScore = "\n**Average Score:  **" + strconv.Itoa(media.AverageScore) + "%"
 	} else {
-		averageScore = "\n**Mean Score:  **" + strconv.Itoa(graphqlResponse.Media.MeanScore) + "%"
+		averageScore = "\n**Mean Score:  **" + strconv.Itoa(media.MeanScore) + "%"
 	}
 	embed := &discordgo.MessageEmbed{
 		Author:      &discordgo.MessageEmbedAuthor{},
 		Color:       color,
 		Description: subtitle + format + description + season + episodes + averageScore + airingTime,
-		URL:         "https://anilist.co/anime/" + strconv.Itoa(graphqlResponse.Media.ID),
+		URL:         "https://anilist.co/anime/" + strconv.Itoa(media.ID),
 
 		Image: &discordgo.MessageEmbedImage{
-			URL: graphqlResponse.Media.CoverImage.Large,
+			URL: media.CoverImage.Large,
 		},
 		Title: title,
 	}

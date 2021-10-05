@@ -132,6 +132,12 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 		go commands.Anime(s, m, clipped)
 	}
 
+	if strings.HasPrefix(m.Content, "?anirand") {
+		clipped := strings.Replace(m.Content, "?anirand", "", 1)
+		clipped = strings.Replace(clipped, " ", "", 1)
+		go commands.AniRand(s, m, clipped)
+	}
+
 	if strings.HasPrefix(m.Content, "?anistaff ") {
 		clipped := strings.Replace(m.Content, "?anistaff ", "", 1)
 		go commands.AniStaff(s, m, clipped)

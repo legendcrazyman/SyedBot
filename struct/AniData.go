@@ -33,8 +33,12 @@ type Media struct {
 	NextAiringEpisode NextAiringEpisode   `json:"nextAiringEpisode"`
 	Characters        CharacterConnection `json:"characters"`
 }
+type MediaPage struct {
+	Media []Media `json:"media"`
+}
+
 type MediaData struct {
-	Media Media `json:"Media"`
+	Page MediaPage `json:"Page"`
 }
 type CharacterConnection struct {
 	Edges []VoiceActorEdge `json:"edges"`
