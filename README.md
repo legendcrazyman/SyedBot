@@ -10,17 +10,19 @@ Discord Bot that does various things
 - Time until
 - Current time in city
 - Stock symbol data 
+- Cryptocurrency data
 
 # Installation & Setup
 ## 1. 
 ```
-go get https://github.com/Monko2k/SyedBot
+git clone https://github.com/Monko2k/SyedBot.git
+go get
 make
 ./syed
 ```
 
 ## 2. Configuration
-Create a `config.json` at `config/config.json`
+Create a `config.json` at `config/config.json` with the following contents
 ```
 {
     "DiscordToken": "",
@@ -42,26 +44,26 @@ Twitter | https://developer.twitter.com/en/docs/twitter-api
 Geocode | https://geocode.xyz/api
 TimeZoneDB | https://timezonedb.com/api
 
-Note that leaving empty string is fine as the associated commands will cease to function.
+Note: leaving an empty string is fine, but the associated commands will cease to function.
 
 
 # Commands
 ## Anime
 **anime** `title` 
-> Display info for a show
+> Display info for a piece of anime media
 
 **anirand** `type:value1-value2` `type:value`
-> Returns a random anime, optional parameters are available to limit the selection of anime to random with.
-The `type` can be either upper/lower case of the character.
+> Returns a random anime, with optional parameters available to narrow the selection.
+`type` is case insensitive
 
 Type | Example value(s)
 ------------ | -------------
 y (Year) | `2021` or `1940-2022`
-g (Genres) | `Action` `` delimit by any combination of `,` or ` `
+g (Genres) | `Action` `` delimited by any combination of `,` or ` `
 s (Score) | `22` or `60-80`
 
 **anistaff** `name` 
-> Returns the detail of the person that participated in anime.
+> Returns the detail of the person that was staff in an anime.
 
 **anichar** `name` 
 > **anistaff** but for characters in anime.
@@ -88,12 +90,13 @@ s (Score) | `22` or `60-80`
 **time until** `time`
 > Returns the time until the input `time` where `time` is in UTC 
 - Different length of the `time` string will translate as follows:
-- `h` `hh` `hmm` `hhmm` where `h` is hour `m` is minute
+- `h` `hh` `hmm` `hhmm` `hh:mm` `h:mm` where `h` is hour `m` is minute
 
 ## Twitter
 
 **tweet** `message` `(optional) Media link`
-> Greater than 3 (exclusive) of ✅ and ✅ + 2 > 🖕 is required to tweet the requested message
+> Posts a tweet to the associated Twitter account of the linked API keys
+- Greater than 3 (exclusive) of ✅ and ✅ + 2 > 🖕 is required to tweet the requested message
 
 ## Misc
 
