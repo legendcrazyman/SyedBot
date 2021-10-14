@@ -106,7 +106,7 @@ func AniRand(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 			}
 		}
 	}
-	//log.Println(query)
+	log.Println(query)
 	AnimeMedia(s, m, query, 3)
 }
 
@@ -136,27 +136,29 @@ func AnimeMedia(s *discordgo.Session, m *discordgo.MessageCreate, arg string, re
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		fmt.Println(err)
+		s.ChannelMessageSend(m.ChannelID, "Anime not found!")
 		return
 	}
 	var response structs.AniData
 
 	if err := json.Unmarshal(body, &response); err != nil {
 		log.Println(err.Error())
+		s.ChannelMessageSend(m.ChannelID, "Anime not found!")
 		return
 	}
 	graphqlResponse := response.Data
 
 	var index int
+	if len(graphqlResponse.Page.Media) == 0 {
+		s.ChannelMessageSend(m.ChannelID, "Anime not found!")
+		return
+	}
 	if results == 1 {
 		index = 0
 	} else {
 		max := results
 		if len(graphqlResponse.Page.Media) < results {
 			max = len(graphqlResponse.Page.Media)
-		}
-		if max < 1 {
-			s.ChannelMessageSend(m.ChannelID, "None found!")
-			return
 		}
 		index = rand.Intn(max)
 	}
@@ -292,12 +294,14 @@ func AniStaff(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		fmt.Println(err)
+		s.ChannelMessageSend(m.ChannelID, "Person not found!")
 		return
 	}
 	var response structs.AniStaffData
 
 	if err := json.Unmarshal(body, &response); err != nil {
 		log.Println(err.Error())
+		s.ChannelMessageSend(m.ChannelID, "Person not found!")
 		return
 	}
 	graphqlResponse := response.Data
@@ -381,7 +385,7 @@ func AniChar(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 	res, err := client.Do(req)
 	if err != nil {
 		log.Println(err.Error())
-		s.ChannelMessageSend(m.ChannelID, "Anime not found!")
+		s.ChannelMessageSend(m.ChannelID, "Character not found!")
 		return
 	}
 	defer res.Body.Close()
@@ -389,12 +393,14 @@ func AniChar(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		fmt.Println(err)
+		s.ChannelMessageSend(m.ChannelID, "Character not found!")
 		return
 	}
 	var response structs.AniCharData
 
 	if err := json.Unmarshal(body, &response); err != nil {
 		log.Println(err.Error())
+		s.ChannelMessageSend(m.ChannelID, "Character not found!")
 		return
 	}
 	graphqlResponse := response.Data
