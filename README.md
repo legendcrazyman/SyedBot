@@ -110,10 +110,7 @@ s (Score) | `22` or `60-80`
 > Supercalifragilisticexpialidocious wholesome command
 
 **whitecatify**
-> holy shit guys
-
-**piss**
-> shid
+> translate to whitecat expression
 
 **salam**
 > salam
