@@ -24,7 +24,6 @@ also, I'm pretty sure all of these commands can be combined into a single one
 
 
 func countVotes(s *discordgo.Session, m *discordgo.MessageCreate) bool{
-	return true
 	s.MessageReactionAdd(m.ChannelID, m.ID, "✅")
 	s.MessageReactionAdd(m.ChannelID, m.ID, "🖕")
 	time.Sleep(10 * time.Second)
