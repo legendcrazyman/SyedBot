@@ -104,6 +104,12 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 	}
 
+	if strings.HasPrefix(m.Content, "?retweet ") {
+		clipped := strings.Replace(m.Content, "?retweet ", "", 1)
+		go commands.Retweet(s, m, clipped)
+
+	}
+
 	if strings.HasPrefix(m.Content, "?choose ") {
 		clipped := strings.Replace(m.Content, "?choose ", "", 1)
 		var divider string

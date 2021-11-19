@@ -17,7 +17,10 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-func Tweet(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
+/* TODO: make something so that we don't have to make a new twitter api session each time we use a command lol */
+
+
+func countVotes(s *discordgo.Session, m *discordgo.MessageCreate) bool{
 	s.MessageReactionAdd(m.ChannelID, m.ID, "✅")
 	s.MessageReactionAdd(m.ChannelID, m.ID, "🖕")
 	time.Sleep(10 * time.Second)
@@ -31,9 +34,19 @@ func Tweet(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 		} else if x.Emoji.Name == "🖕" {
 			downvote = x.Count
 		}
+	} 
+	if upvote > 3 && upvote - downvote > 2 {
+		return true
+	} else {
+		s.ChannelMessageSend(m.ChannelID, "Not enough upvotes! (need at least 3)")
+		return false
 	}
+}
 
-	if upvote > 3 && upvote-downvote > 2 {
+func Tweet(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
+	
+
+	if countVotes(s, m) {
 
 		// image tweeting (not well tested)
 		urlregex, _ := regexp.Compile(`(http|ftp|https)://([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?`) // stolen
@@ -75,6 +88,7 @@ func Tweet(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 			tweet, err := TwitterSession.PostTweet(arg, vals)
 			if err != nil {
 				log.Println("Tweet post failed" + err.Error())
+				s.ChannelMessageSend(m.ChannelID, "Tweet post failed")
 			} else {
 				tweeturl := "https://twitter.com/BotSyed/status/" + strconv.Itoa(int(tweet.Id))
 				s.ChannelMessageSend(m.ChannelID, tweeturl)
@@ -82,12 +96,7 @@ func Tweet(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 		} else {
 			TweetText(s, m, arg)
 		}
-
-
-		
-	} else {
-		s.ChannelMessageSend(m.ChannelID, "Not enough upvotes! (need at least 3)")
-	}	
+	}
 }
 
 func TweetText (s *discordgo.Session, m *discordgo.MessageCreate, text string) {
@@ -95,9 +104,33 @@ func TweetText (s *discordgo.Session, m *discordgo.MessageCreate, text string) {
 	tweet, err := TwitterSession.PostTweet(text, url.Values{})
 	if err != nil {
 		log.Println("Tweet post failed" + err.Error())
+		s.ChannelMessageSend(m.ChannelID, "Tweet post failed")
 	} else {
 		tweeturl := "https://twitter.com/BotSyed/status/" + strconv.Itoa(int(tweet.Id))
 		s.ChannelMessageSend(m.ChannelID, tweeturl)
 	}
 	TwitterSession.Close()	
+}
+
+func Retweet (s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
+	if countVotes(s, m) {
+		id := arg
+		urlclip, _ := regexp.Compile(`^https:\/\/twitter.com\/.*\/status\/`)
+		id = urlclip.ReplaceAllString(id, "")
+		urlclip, _ = regexp.Compile(`\?s=.*$`)
+		id = urlclip.ReplaceAllString(id, "")
+		idint, err := strconv.ParseInt(id, 10, 64)
+		if err != nil {
+			s.ChannelMessageSend(m.ChannelID, "Retweet failed")
+		} else {
+			TwitterSession := anaconda.NewTwitterApiWithCredentials(config.Config.Twitter.Token, config.Config.Twitter.TokenSecret, config.Config.Twitter.Key, config.Config.Twitter.KeySecret)
+			_, err := TwitterSession.Retweet(idint, true)
+			if err != nil {
+				s.ChannelMessageSend(m.ChannelID, "Retweet failed") 
+			} else {
+				s.ChannelMessageSend(m.ChannelID, "done lol") 
+			}
+		}
+	}
+
 }
