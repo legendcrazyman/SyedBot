@@ -26,6 +26,7 @@ func main() {
 	DiscordSession.AddHandler(handlers.MessageHandler)
 	DiscordSession.AddHandler(handlers.ReactHandler)
 	DiscordSession.Identify.Intents = discordgo.IntentsGuildMessages
+	DiscordSession.Identify.Intents = discordgo.IntentsGuildMessageReactions
 
 	err = DiscordSession.Open()
 	if err != nil {
