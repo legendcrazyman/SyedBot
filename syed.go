@@ -25,8 +25,7 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 	DiscordSession.AddHandler(handlers.MessageHandler)
 	DiscordSession.AddHandler(handlers.ReactHandler)
-	DiscordSession.Identify.Intents = discordgo.IntentsGuildMessages
-	DiscordSession.Identify.Intents = discordgo.IntentsGuildMessageReactions
+	DiscordSession.Identify.Intents = discordgo.IntentsGuildMessages | discordgo.IntentsGuildMessageReactions
 
 	err = DiscordSession.Open()
 	if err != nil {
