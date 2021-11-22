@@ -110,6 +110,11 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 	}
 
+	if strings.HasPrefix(m.Content, "?reply ") {
+		clipped := strings.Replace(m.Content, "?reply ", "", 1)
+		go commands.Reply(s, m, clipped)
+	}
+
 	if strings.HasPrefix(m.Content, "?choose ") {
 		clipped := strings.Replace(m.Content, "?choose ", "", 1)
 		var divider string

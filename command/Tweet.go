@@ -3,6 +3,7 @@ package commands
 import (
 	"SyedBot/config"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -102,22 +103,19 @@ func TweetText (s *discordgo.Session, m *discordgo.MessageCreate, t *anaconda.Tw
 		log.Println("Tweet post failed" + err.Error())
 		s.ChannelMessageSend(m.ChannelID, "Tweet post failed")
 	} else {
-		tweeturl := "https://twitter.com/BotSyed/status/" + strconv.Itoa(int(tweet.Id))
+		tweeturl := "https://twitter.com/BotSyed/status/" + tweet.IdStr
 		s.ChannelMessageSend(m.ChannelID, tweeturl)
 	}
 }
 
 func Retweet (s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 	if countVotes(s, m) {
-		id := arg
-		urlclip, _ := regexp.Compile(`(^https:\/\/twitter.com\/.*\/status\/)|(\?.+)`)
-		id = urlclip.ReplaceAllString(id, "")
-		idint, err := strconv.ParseInt(id, 10, 64)
+		id, err := URLtoID(arg)
 		if err != nil {
-			s.ChannelMessageSend(m.ChannelID, "Retweet failed")
+			s.ChannelMessageSend(m.ChannelID, "Retweet failed") 
 		} else {
 			TwitterSession := anaconda.NewTwitterApiWithCredentials(config.Config.Twitter.Token, config.Config.Twitter.TokenSecret, config.Config.Twitter.Key, config.Config.Twitter.KeySecret)
-			_, err := TwitterSession.Retweet(idint, true)
+			_, err := TwitterSession.Retweet(id, true)
 			TwitterSession.Close()
 			if err != nil {
 				s.ChannelMessageSend(m.ChannelID, "Retweet failed") 
@@ -125,8 +123,43 @@ func Retweet (s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 				s.ChannelMessageSend(m.ChannelID, "done lol") 
 			}
 		}
-	}
+	} 
+}
 
+func Reply (s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
+	urlregex, _ := regexp.Compile(`(http|ftp|https)://([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?`)
+	if urlregex.MatchString(arg) {
+		if countVotes(s, m) {
+			srcurl := urlregex.FindStringSubmatch(arg)[0]
+			text := strings.ReplaceAll(arg, srcurl, "") 
+			id, err := URLtoID(srcurl)
+			if err != nil {
+				s.ChannelMessageSend(m.ChannelID, "Reply failed") 
+			} else {
+				TwitterSession := anaconda.NewTwitterApiWithCredentials(config.Config.Twitter.Token, config.Config.Twitter.TokenSecret, config.Config.Twitter.Key, config.Config.Twitter.KeySecret)
+				tweet, err := TwitterSession.GetTweet(id, url.Values{})
+				if err != nil {
+					log.Println("Invalid Tweet ID")
+					return
+				}
+				vals := url.Values{}
+				vals.Set("in_reply_to_status_id", tweet.IdStr)
+				status := fmt.Sprintf("@%s %s", tweet.User.ScreenName, text)
+				reply, err := TwitterSession.PostTweet(status, vals)
+				TwitterSession.Close()
+				if err != nil {
+					s.ChannelMessageSend(m.ChannelID, "Reply failed") 
+				} else {
+					tweeturl := "https://twitter.com/BotSyed/status/" + reply.IdStr
+					s.ChannelMessageSend(m.ChannelID, tweeturl) 
+				}
+	
+			}
+		}
+	} else {
+		s.ChannelMessageSend(m.ChannelID, "Please include a Tweet to reply to")
+	}
+	
 }
 
 func TweetVid (s *discordgo.Session, m *discordgo.MessageCreate, t *anaconda.TwitterApi, body []byte, mediatype string, arg string) {
@@ -189,4 +222,15 @@ func TweetImg (s *discordgo.Session, m *discordgo.MessageCreate, t *anaconda.Twi
 		tweeturl := "https://twitter.com/BotSyed/status/" + strconv.Itoa(int(tweet.Id))
 		s.ChannelMessageSend(m.ChannelID, tweeturl)
 	}
+}
+
+func URLtoID (url string) (int64, error) {
+	urlclip, _ := regexp.Compile(`(^https:\/\/twitter.com\/.*\/status\/)|(\?.+)`)
+	id := urlclip.ReplaceAllString(url, "")
+	idint, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		return 0, errors.New("ID conversion failed")
+	}
+	return idint, nil
+
 }
