@@ -61,7 +61,7 @@ func Tweet(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 			text := strings.ReplaceAll(arg, srcurl, "")
 			client := &http.Client {
 			}
-			req, err := http.NewRequest("GET", srcurl, nil)
+			req, err := http.NewRequest("HEAD", srcurl, nil)
 
 			if err != nil {
 				fmt.Println(err)
@@ -72,20 +72,13 @@ func Tweet(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 				fmt.Println(err)
 				return
 			}
-			defer res.Body.Close()
-
-			body, err := ioutil.ReadAll(res.Body)
-			if err != nil {
-				fmt.Println(err)
-				return
-			}
 
 			mediatype := res.Header.Get("Content-Type")
 			log.Println(mediatype)
 			if (strings.HasPrefix(mediatype, "image")) {
-				TweetImg(s, m, twit, body, text)
+				TweetImg(s, m, twit, srcurl, text)
 			} else if strings.HasPrefix(mediatype, "video") {
-				TweetVid(s, m, twit, body, mediatype, text)
+				TweetVid(s, m, twit, srcurl, text)
 			} else {
 				TweetText(s, m, twit, arg)
 			}
@@ -162,9 +155,28 @@ func Reply (s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 	
 }
 
-func TweetVid (s *discordgo.Session, m *discordgo.MessageCreate, t *anaconda.TwitterApi, body []byte, mediatype string, arg string) {
-	log.Println(len(body))
-	media, err := t.UploadVideoInit(len(body), mediatype)
+func TweetVid (s *discordgo.Session, m *discordgo.MessageCreate, t *anaconda.TwitterApi, srcurl string, arg string) {
+	client := &http.Client {
+	}
+	req, err := http.NewRequest("GET", srcurl, nil)
+
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	res, err := client.Do(req)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer res.Body.Close()
+
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	media, err := t.UploadVideoInit(len(body), res.Header.Get("Content-Type"))
 	if err != nil {
 		fmt.Println(err)
 		TweetText(s, m, t, arg)
@@ -204,7 +216,27 @@ func TweetVid (s *discordgo.Session, m *discordgo.MessageCreate, t *anaconda.Twi
 	}
 }
 
-func TweetImg (s *discordgo.Session, m *discordgo.MessageCreate, t *anaconda.TwitterApi, body []byte, arg string) {
+func TweetImg (s *discordgo.Session, m *discordgo.MessageCreate, t *anaconda.TwitterApi, srcurl string, arg string) {
+	client := &http.Client {
+	}
+	req, err := http.NewRequest("GET", srcurl, nil)
+
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	res, err := client.Do(req)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer res.Body.Close()
+
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 	media, err := t.UploadMedia(base64.StdEncoding.EncodeToString(body))
 	if err != nil {
 		fmt.Println(err)
