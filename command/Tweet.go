@@ -22,6 +22,9 @@ import (
 /* TODO: make something so that we don't have to make a new twitter api session each time we use a command lol
 also, I'm pretty sure all of these commands can be combined into a single one
 */
+var client = &http.Client {
+}
+var twit *anaconda.TwitterApi
 
 
 func countVotes(s *discordgo.Session, m *discordgo.MessageCreate) bool {
@@ -40,6 +43,7 @@ func countVotes(s *discordgo.Session, m *discordgo.MessageCreate) bool {
 		}
 	} 
 	if upvote > 2 && upvote - downvote > 1 {
+		twit = anaconda.NewTwitterApiWithCredentials(config.Config.Twitter.Token, config.Config.Twitter.TokenSecret, config.Config.Twitter.Key, config.Config.Twitter.KeySecret) //why does this need to go here
 		return true
 	} else {
 		s.ChannelMessageSend(m.ChannelID, "Not enough upvotes! (need at least 2)")
@@ -48,19 +52,12 @@ func countVotes(s *discordgo.Session, m *discordgo.MessageCreate) bool {
 }
 
 func Tweet(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
-	
-
 	if countVotes(s, m) {
-		twit := anaconda.NewTwitterApiWithCredentials(config.Config.Twitter.Token, config.Config.Twitter.TokenSecret, config.Config.Twitter.Key, config.Config.Twitter.KeySecret)
 		// image tweeting (not well tested)
-		urlregex, _ := regexp.Compile(`(http|ftp|https)://([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?`) // stolen
+		urlregex := regexp.MustCompile(`(http|ftp|https)://([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?`) // stolen
 		if urlregex.MatchString(arg) {
-
-			
 			srcurl := urlregex.FindStringSubmatch(arg)[0]
 			text := strings.ReplaceAll(arg, srcurl, "")
-			client := &http.Client {
-			}
 			req, err := http.NewRequest("HEAD", srcurl, nil)
 
 			if err != nil {
@@ -76,22 +73,21 @@ func Tweet(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 			mediatype := res.Header.Get("Content-Type")
 			log.Println(mediatype)
 			if (strings.HasPrefix(mediatype, "image")) {
-				TweetImg(s, m, twit, srcurl, text)
+				TweetImg(s, m, srcurl, text)
 			} else if strings.HasPrefix(mediatype, "video") {
-				TweetVid(s, m, twit, srcurl, text)
+				TweetVid(s, m, srcurl, text)
 			} else {
-				TweetText(s, m, twit, arg)
+				TweetText(s, m, arg)
 			}
 
 		} else {
-			TweetText(s, m, twit, arg)
+			TweetText(s, m, arg)
 		}
-		twit.Close()
 	}
 }
 
-func TweetText (s *discordgo.Session, m *discordgo.MessageCreate, t *anaconda.TwitterApi, text string) {
-	tweet, err := t.PostTweet(text, url.Values{})
+func TweetText (s *discordgo.Session, m *discordgo.MessageCreate, text string) {
+	tweet, err := twit.PostTweet(text, url.Values{})
 	if err != nil {
 		log.Println("Tweet post failed" + err.Error())
 		s.ChannelMessageSend(m.ChannelID, "Tweet post failed")
@@ -107,9 +103,7 @@ func Retweet (s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 		if err != nil {
 			s.ChannelMessageSend(m.ChannelID, "Retweet failed") 
 		} else {
-			TwitterSession := anaconda.NewTwitterApiWithCredentials(config.Config.Twitter.Token, config.Config.Twitter.TokenSecret, config.Config.Twitter.Key, config.Config.Twitter.KeySecret)
-			_, err := TwitterSession.Retweet(id, true)
-			TwitterSession.Close()
+			_, err := twit.Retweet(id, true)
 			if err != nil {
 				s.ChannelMessageSend(m.ChannelID, "Retweet failed") 
 			} else {
@@ -120,7 +114,7 @@ func Retweet (s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 }
 
 func Reply (s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
-	urlregex, _ := regexp.Compile(`(http|ftp|https)://([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?`)
+	urlregex := regexp.MustCompile(`(http|ftp|https)://([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?`)
 	if urlregex.MatchString(arg) {
 		if countVotes(s, m) {
 			srcurl := urlregex.FindStringSubmatch(arg)[0]
@@ -129,8 +123,7 @@ func Reply (s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 			if err != nil {
 				s.ChannelMessageSend(m.ChannelID, "Reply failed") 
 			} else {
-				TwitterSession := anaconda.NewTwitterApiWithCredentials(config.Config.Twitter.Token, config.Config.Twitter.TokenSecret, config.Config.Twitter.Key, config.Config.Twitter.KeySecret)
-				tweet, err := TwitterSession.GetTweet(id, url.Values{})
+				tweet, err := twit.GetTweet(id, url.Values{})
 				if err != nil {
 					log.Println("Invalid Tweet ID")
 					return
@@ -138,8 +131,7 @@ func Reply (s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 				vals := url.Values{}
 				vals.Set("in_reply_to_status_id", tweet.IdStr)
 				status := fmt.Sprintf("@%s %s", tweet.User.ScreenName, text)
-				reply, err := TwitterSession.PostTweet(status, vals)
-				TwitterSession.Close()
+				reply, err := twit.PostTweet(status, vals)
 				if err != nil {
 					s.ChannelMessageSend(m.ChannelID, "Reply failed") 
 				} else {
@@ -155,9 +147,7 @@ func Reply (s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 	
 }
 
-func TweetVid (s *discordgo.Session, m *discordgo.MessageCreate, t *anaconda.TwitterApi, srcurl string, arg string) {
-	client := &http.Client {
-	}
+func TweetVid (s *discordgo.Session, m *discordgo.MessageCreate, srcurl string, arg string) {
 	req, err := http.NewRequest("GET", srcurl, nil)
 
 	if err != nil {
@@ -176,17 +166,17 @@ func TweetVid (s *discordgo.Session, m *discordgo.MessageCreate, t *anaconda.Twi
 		fmt.Println(err)
 		return
 	}
-	media, err := t.UploadVideoInit(len(body), res.Header.Get("Content-Type"))
+	media, err := twit.UploadVideoInit(len(body), res.Header.Get("Content-Type"))
 	if err != nil {
 		fmt.Println(err)
-		TweetText(s, m, t, arg)
+		TweetText(s, m, arg)
 		return	
 	}
 
 	chunk := 0
 	// 5mb chunks
 	for i := 0; i < len(body); i += 5242879 { 
-		err = t.UploadVideoAppend(media.MediaIDString, chunk,
+		err = twit.UploadVideoAppend(media.MediaIDString, chunk,
 			base64.StdEncoding.EncodeToString(
 				body[i:int(math.Min(float64(i) + 5242879, float64(len(body))))], // this is disease
 			),
@@ -198,7 +188,7 @@ func TweetVid (s *discordgo.Session, m *discordgo.MessageCreate, t *anaconda.Twi
 		chunk++
 	}
 
-	videoMedia, err := t.UploadVideoFinalize(media.MediaIDString)
+	videoMedia, err := twit.UploadVideoFinalize(media.MediaIDString)
 	if err != nil {
 		log.Println(err.Error())
 		return
@@ -206,19 +196,17 @@ func TweetVid (s *discordgo.Session, m *discordgo.MessageCreate, t *anaconda.Twi
 	vals := url.Values{}
 	vals.Set("media_ids", strconv.FormatInt(videoMedia.MediaID, 10))
 	vals.Set("possibly_sensitive", "true")
-	tweet, err := t.PostTweet(arg, vals)
+	tweet, err := twit.PostTweet(arg, vals)
 	if err != nil {
 		log.Println("Tweet post failed" + err.Error())
 		s.ChannelMessageSend(m.ChannelID, "Tweet post failed")
 	} else {
-		tweeturl := "https://twitter.com/BotSyed/status/" + strconv.Itoa(int(tweet.Id))
+		tweeturl := "https://twitter.com/BotSyed/status/" + tweet.IdStr
 		s.ChannelMessageSend(m.ChannelID, tweeturl)
 	}
 }
 
-func TweetImg (s *discordgo.Session, m *discordgo.MessageCreate, t *anaconda.TwitterApi, srcurl string, arg string) {
-	client := &http.Client {
-	}
+func TweetImg (s *discordgo.Session, m *discordgo.MessageCreate, srcurl string, arg string) {
 	req, err := http.NewRequest("GET", srcurl, nil)
 
 	if err != nil {
@@ -237,27 +225,27 @@ func TweetImg (s *discordgo.Session, m *discordgo.MessageCreate, t *anaconda.Twi
 		fmt.Println(err)
 		return
 	}
-	media, err := t.UploadMedia(base64.StdEncoding.EncodeToString(body))
+	media, err := twit.UploadMedia(base64.StdEncoding.EncodeToString(body))
 	if err != nil {
 		fmt.Println(err)
-		TweetText(s, m, t, arg)
+		TweetText(s, m, arg)
 		return	
 	}
 	vals := url.Values{}
 	vals.Set("media_ids", strconv.FormatInt(media.MediaID, 10))
 	vals.Set("possibly_sensitive", "true")
-	tweet, err := t.PostTweet(arg, vals)
+	tweet, err := twit.PostTweet(arg, vals)
 	if err != nil {
 		log.Println("Tweet post failed" + err.Error())
 		s.ChannelMessageSend(m.ChannelID, "Tweet post failed")
 	} else {
-		tweeturl := "https://twitter.com/BotSyed/status/" + strconv.Itoa(int(tweet.Id))
+		tweeturl := "https://twitter.com/BotSyed/status/" + tweet.IdStr
 		s.ChannelMessageSend(m.ChannelID, tweeturl)
 	}
 }
 
 func URLtoID (url string) (int64, error) {
-	urlclip, _ := regexp.Compile(`(^https:\/\/twitter.com\/.*\/status\/)|(\?.+)`)
+	urlclip := regexp.MustCompile(`(^https:\/\/twitter.com\/.*\/status\/)|(\?.+)`)
 	id := urlclip.ReplaceAllString(url, "")
 	idint, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
