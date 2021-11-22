@@ -24,7 +24,7 @@ also, I'm pretty sure all of these commands can be combined into a single one
 */
 
 
-func countVotes(s *discordgo.Session, m *discordgo.MessageCreate) bool{
+func countVotes(s *discordgo.Session, m *discordgo.MessageCreate) bool {
 	s.MessageReactionAdd(m.ChannelID, m.ID, "✅")
 	s.MessageReactionAdd(m.ChannelID, m.ID, "🖕")
 	time.Sleep(10 * time.Second)
@@ -39,10 +39,10 @@ func countVotes(s *discordgo.Session, m *discordgo.MessageCreate) bool{
 			downvote = x.Count
 		}
 	} 
-	if upvote > 3 && upvote - downvote > 2 {
+	if upvote > 2 && upvote - downvote > 1 {
 		return true
 	} else {
-		s.ChannelMessageSend(m.ChannelID, "Not enough upvotes! (need at least 3)")
+		s.ChannelMessageSend(m.ChannelID, "Not enough upvotes! (need at least 2)")
 		return false
 	}
 }
