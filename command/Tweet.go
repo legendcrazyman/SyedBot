@@ -57,7 +57,7 @@ func Tweet(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 
 			
 			srcurl := urlregex.FindStringSubmatch(arg)[0]
-			arg = strings.ReplaceAll(arg, srcurl, "")
+			text := strings.ReplaceAll(arg, srcurl, "")
 			client := &http.Client {
 			}
 			req, err := http.NewRequest("GET", srcurl, nil)
@@ -80,10 +80,11 @@ func Tweet(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 			}
 
 			mediatype := res.Header.Get("Content-Type")
+			log.Println(mediatype)
 			if (strings.HasPrefix(mediatype, "image")) {
-				TweetImg(s, m, twit, body, arg)
+				TweetImg(s, m, twit, body, text)
 			} else if strings.HasPrefix(mediatype, "video") {
-				TweetVid(s, m, twit, body, mediatype, arg)
+				TweetVid(s, m, twit, body, mediatype, text)
 			} else {
 				TweetText(s, m, twit, arg)
 			}
@@ -109,9 +110,7 @@ func TweetText (s *discordgo.Session, m *discordgo.MessageCreate, t *anaconda.Tw
 func Retweet (s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 	if countVotes(s, m) {
 		id := arg
-		urlclip, _ := regexp.Compile(`^https:\/\/twitter.com\/.*\/status\/`)
-		id = urlclip.ReplaceAllString(id, "")
-		urlclip, _ = regexp.Compile(`\?s=.*$`)
+		urlclip, _ := regexp.Compile(`(^https:\/\/twitter.com\/.*\/status\/)|(\?.+)`)
 		id = urlclip.ReplaceAllString(id, "")
 		idint, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
@@ -141,7 +140,7 @@ func TweetVid (s *discordgo.Session, m *discordgo.MessageCreate, t *anaconda.Twi
 
 	chunk := 0
 	// 5mb chunks
-	for i := 0; i < len(body); i += 5242879 {
+	for i := 0; i < len(body); i += 5242879 { 
 		err = t.UploadVideoAppend(media.MediaIDString, chunk,
 			base64.StdEncoding.EncodeToString(
 				body[i:int(math.Min(float64(i) + 5242879, float64(len(body))))], // this is disease
