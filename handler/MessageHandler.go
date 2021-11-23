@@ -1,10 +1,10 @@
 package messageHandler
 
 import (
+	"fmt"
 	"log"
 	"math/rand"
 	"regexp"
-	"strconv"
 	"strings"
 
 	commands "SyedBot/command"
@@ -53,9 +53,9 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 	if strings.HasPrefix(m.Content, "?crypto ") {
 		clipped := strings.Replace(m.Content, "?crypto ", "", 1)
 		clipped = strings.ToLower(clipped)
-		droppedchars, _ := regexp.Compile(`[^a-z0-9 _-]`)
+		droppedchars := regexp.MustCompile(`[^a-z0-9 _-]`)
 		clipped = droppedchars.ReplaceAllString(clipped, "")
-		spaces, _ := regexp.Compile(` `)
+		spaces := regexp.MustCompile(` `)
 		clipped = spaces.ReplaceAllString(clipped, "-")
 		go commands.Crypto(s, m, clipped)
 	}
@@ -77,8 +77,7 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 		} else {
 			wholesomestat = " is super freaking wholesome!"
 		}
-		message := clipped + " is " + strconv.Itoa(wholesomeamt) + "% wholesome\n" + clipped + wholesomestat
-
+		message := fmt.Sprintf("%s%s (%d%%)", clipped, wholesomestat, wholesomeamt)
 		s.ChannelMessageSend(m.ChannelID, message)
 	}
 
@@ -87,16 +86,13 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 		s.ChannelMessageSend(m.ChannelID, "holy shit guys, "+clipped)
 	}
 
-	imsearch, err := regexp.Compile(`^((.|\n)*?)( |^)(([iI]'?[mM])|[iI] [aA][mM]) `)
-	if err != nil {
-		log.Println(err.Error())
-	} else {
-		if imsearch.MatchString(m.Content) {
-			if rand.Intn(6) ==  1 { // should probably make this a changeable setting
-				s.ChannelMessageSend(m.ChannelID, "hi "+imsearch.ReplaceAllString(m.Content, ""))
-			}
+	imsearch := regexp.MustCompile(`^((.|\n)*?)( |^)(([iI]'?[mM])|[iI] [aA][mM]) `)
+	if imsearch.MatchString(m.Content) {
+		if rand.Intn(6) ==  1 { // should probably make this a changeable setting
+			s.ChannelMessageSend(m.ChannelID, "hi "+imsearch.ReplaceAllString(m.Content, ""))
 		}
 	}
+	
 
 	if strings.HasPrefix(m.Content, "?tweet ") {
 		clipped := strings.Replace(m.Content, "?tweet ", "", 1)

@@ -53,11 +53,11 @@ func AniRand(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 		order += "_DESC"
 	}
 	query := "type: ANIME, sort: " + order 
-	yearRangeParse, _ := regexp.Compile(`[yY]:[0-9]{4}-[0-9]{4}`)
-	yearParse, _ := regexp.Compile(`[yY]:[0-9]{4}`)
-	scoreRangeParse, _ := regexp.Compile(`[sS]:[0-9]{1,2}-[0-9]{1,2}`) // this regex does not handle values greater than 99 (highest score on anilist is 92)
-	scoreParse, _ := regexp.Compile(`[sS]:[0-9]{1,2}`)
-	genreParse, _ := regexp.Compile(`[gG]:.+?(([yY]:)|([sS]:)|$)`)
+	yearRangeParse := regexp.MustCompile(`[yY]:[0-9]{4}-[0-9]{4}`)
+	yearParse := regexp.MustCompile(`[yY]:[0-9]{4}`)
+	scoreRangeParse := regexp.MustCompile(`[sS]:[0-9]{1,2}-[0-9]{1,2}`) // this regex does not handle values greater than 99 (highest score on anilist is 92)
+	scoreParse := regexp.MustCompile(`[sS]:[0-9]{1,2}`)
+	genreParse := regexp.MustCompile(`[gG]:.+?(([yY]:)|([sS]:)|$)`)
 	if yearRangeParse.MatchString(arg) {
 		yearRange := yearRangeParse.FindString(arg)
 		yearRange = strings.Replace(strings.ToLower(yearRange), "y:", "", 1)

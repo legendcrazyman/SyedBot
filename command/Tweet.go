@@ -55,11 +55,12 @@ func Tweet(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 	if countVotes(s, m) {
 		// image tweeting (not well tested)
 		urlregex := regexp.MustCompile(`(http|ftp|https)://([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?`) // stolen
-		if urlregex.MatchString(arg) {
-			srcurl := urlregex.FindStringSubmatch(arg)[0]
-			text := strings.ReplaceAll(arg, srcurl, "")
+		text := arg
+		vals := url.Values{}
+		if urlregex.MatchString(text) {
+			srcurl := urlregex.FindStringSubmatch(text)[0]
+			text_nourl := strings.ReplaceAll(text, srcurl, "")
 			req, err := http.NewRequest("HEAD", srcurl, nil)
-
 			if err != nil {
 				fmt.Println(err)
 				return
@@ -73,27 +74,24 @@ func Tweet(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 			mediatype := res.Header.Get("Content-Type")
 			log.Println(mediatype)
 			if (strings.HasPrefix(mediatype, "image")) {
-				TweetImg(s, m, srcurl, text)
+				err = AppendImg(s, m, srcurl, &vals)
 			} else if strings.HasPrefix(mediatype, "video") {
-				TweetVid(s, m, srcurl, text)
+				err = AppendVid(s, m, srcurl, &vals)
+			} 
+			if err != nil {
+				log.Println(err)
 			} else {
-				TweetText(s, m, arg)
+				text = text_nourl
 			}
-
+		} 
+		tweet, err := twit.PostTweet(text, vals)
+		if err != nil {
+			log.Println("Tweet post failed" + err.Error())
+			s.ChannelMessageSend(m.ChannelID, "Tweet post failed")
 		} else {
-			TweetText(s, m, arg)
+			tweeturl := "https://twitter.com/BotSyed/status/" + tweet.IdStr
+			s.ChannelMessageSend(m.ChannelID, tweeturl)
 		}
-	}
-}
-
-func TweetText (s *discordgo.Session, m *discordgo.MessageCreate, text string) {
-	tweet, err := twit.PostTweet(text, url.Values{})
-	if err != nil {
-		log.Println("Tweet post failed" + err.Error())
-		s.ChannelMessageSend(m.ChannelID, "Tweet post failed")
-	} else {
-		tweeturl := "https://twitter.com/BotSyed/status/" + tweet.IdStr
-		s.ChannelMessageSend(m.ChannelID, tweeturl)
 	}
 }
 
@@ -130,6 +128,33 @@ func Reply (s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 				}
 				vals := url.Values{}
 				vals.Set("in_reply_to_status_id", tweet.IdStr)
+				if urlregex.MatchString(text) {
+					srcurl := urlregex.FindStringSubmatch(text)[0]
+					text_nourl := strings.ReplaceAll(text, srcurl, "")
+					req, err := http.NewRequest("HEAD", srcurl, nil)
+					if err != nil {
+						fmt.Println(err)
+						return
+					}
+					res, err := client.Do(req)
+					if err != nil {
+						fmt.Println(err)
+						return
+					}
+
+					mediatype := res.Header.Get("Content-Type")
+					log.Println(mediatype)
+					if (strings.HasPrefix(mediatype, "image")) {
+						err = AppendImg(s, m, srcurl, &vals)
+					} else if strings.HasPrefix(mediatype, "video") {
+						err = AppendVid(s, m, srcurl, &vals)
+					} 
+					if err != nil {
+						log.Println(err)
+					} else {
+						text = text_nourl
+					}
+				} 
 				status := fmt.Sprintf("@%s %s", tweet.User.ScreenName, text)
 				reply, err := twit.PostTweet(status, vals)
 				if err != nil {
@@ -147,30 +172,25 @@ func Reply (s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 	
 }
 
-func TweetVid (s *discordgo.Session, m *discordgo.MessageCreate, srcurl string, arg string) {
+func AppendVid (s *discordgo.Session, m *discordgo.MessageCreate, srcurl string, vals *url.Values) error {
 	req, err := http.NewRequest("GET", srcurl, nil)
 
 	if err != nil {
-		fmt.Println(err)
-		return
+		return err
 	}
 	res, err := client.Do(req)
 	if err != nil {
-		fmt.Println(err)
-		return
+		return err
 	}
 	defer res.Body.Close()
 
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		fmt.Println(err)
-		return
+		return err
 	}
 	media, err := twit.UploadVideoInit(len(body), res.Header.Get("Content-Type"))
 	if err != nil {
-		fmt.Println(err)
-		TweetText(s, m, arg)
-		return	
+		return err
 	}
 
 	chunk := 0
@@ -182,66 +202,44 @@ func TweetVid (s *discordgo.Session, m *discordgo.MessageCreate, srcurl string, 
 			),
 		)
 		if err != nil {
-			log.Println(err.Error())
-			return
+			return err
 		}
 		chunk++
 	}
-
 	videoMedia, err := twit.UploadVideoFinalize(media.MediaIDString)
 	if err != nil {
-		log.Println(err.Error())
-		return
+		return err
 	}
-	vals := url.Values{}
-	vals.Set("media_ids", strconv.FormatInt(videoMedia.MediaID, 10))
+	vals.Set("media_ids", videoMedia.MediaIDString)
 	vals.Set("possibly_sensitive", "true")
-	tweet, err := twit.PostTweet(arg, vals)
-	if err != nil {
-		log.Println("Tweet post failed" + err.Error())
-		s.ChannelMessageSend(m.ChannelID, "Tweet post failed")
-	} else {
-		tweeturl := "https://twitter.com/BotSyed/status/" + tweet.IdStr
-		s.ChannelMessageSend(m.ChannelID, tweeturl)
-	}
+	return nil
 }
 
-func TweetImg (s *discordgo.Session, m *discordgo.MessageCreate, srcurl string, arg string) {
+func AppendImg (s *discordgo.Session, m *discordgo.MessageCreate, srcurl string, vals *url.Values) error {
 	req, err := http.NewRequest("GET", srcurl, nil)
-
 	if err != nil {
-		fmt.Println(err)
-		return
+		return err
 	}
 	res, err := client.Do(req)
 	if err != nil {
-		fmt.Println(err)
-		return
+		return err
 	}
 	defer res.Body.Close()
 
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		fmt.Println(err)
-		return
+		return err
 	}
+	log.Println("asdfad")
 	media, err := twit.UploadMedia(base64.StdEncoding.EncodeToString(body))
 	if err != nil {
-		fmt.Println(err)
-		TweetText(s, m, arg)
-		return	
+		return err	
 	}
-	vals := url.Values{}
-	vals.Set("media_ids", strconv.FormatInt(media.MediaID, 10))
+	log.Println("shit")
+	vals.Set("media_ids", media.MediaIDString)
+	log.Println("lol")
 	vals.Set("possibly_sensitive", "true")
-	tweet, err := twit.PostTweet(arg, vals)
-	if err != nil {
-		log.Println("Tweet post failed" + err.Error())
-		s.ChannelMessageSend(m.ChannelID, "Tweet post failed")
-	} else {
-		tweeturl := "https://twitter.com/BotSyed/status/" + tweet.IdStr
-		s.ChannelMessageSend(m.ChannelID, tweeturl)
-	}
+	return nil
 }
 
 func URLtoID (url string) (int64, error) {
