@@ -230,14 +230,11 @@ func AppendImg (s *discordgo.Session, m *discordgo.MessageCreate, srcurl string,
 	if err != nil {
 		return err
 	}
-	log.Println("asdfad")
 	media, err := twit.UploadMedia(base64.StdEncoding.EncodeToString(body))
 	if err != nil {
 		return err	
 	}
-	log.Println("shit")
 	vals.Set("media_ids", media.MediaIDString)
-	log.Println("lol")
 	vals.Set("possibly_sensitive", "true")
 	return nil
 }
