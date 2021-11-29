@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"regexp"
 	"strings"
+	"time"
 
 	commands "SyedBot/command"
 
@@ -95,21 +96,35 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 	
 
 	if strings.HasPrefix(m.Content, "?tweet ") {
+		if !CountVotes(s, m, 2) {
+			return
+		}	
 		clipped := strings.Replace(m.Content, "?tweet ", "", 1)
 		go commands.Tweet(s, m, clipped)
 
 	}
 
 	if strings.HasPrefix(m.Content, "?retweet ") {
+		if !CountVotes(s, m, 2) {
+			return
+		}	
 		clipped := strings.Replace(m.Content, "?retweet ", "", 1)
 		go commands.Retweet(s, m, clipped)
 
 	}
 
 	if strings.HasPrefix(m.Content, "?reply ") {
+		if !CountVotes(s, m, 2) {
+			return
+		}	
 		clipped := strings.Replace(m.Content, "?reply ", "", 1)
 		go commands.Reply(s, m, clipped)
 	}
+	/*
+	if strings.HasPrefix(m.Content, "?quote ") {
+		clipped := strings.Replace(m.Content, "?quote ", "", 1)
+		go commands.Quote(s, m, clipped)
+	}*/
 
 	if strings.HasPrefix(m.Content, "?choose ") {
 		clipped := strings.Replace(m.Content, "?choose ", "", 1)
@@ -155,4 +170,46 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 		go commands.AniChar(s, m, clipped)
 	}
 
+	// todo: move this somewhere else
+	if strings.HasPrefix(m.Content, "?rename ") {
+		if !CountVotes(s, m, 4) {
+			return
+		}	
+		clipped := strings.Replace(m.Content, "?rename ", "", 1)
+		idregex := regexp.MustCompile(`<@!\d+>`)
+		id := idregex.FindString(m.Content)
+		clipped = idregex.ReplaceAllString(clipped, "")
+		name := strings.TrimSpace(clipped)
+		if id != "" {
+			id = id[3:len(id) - 1]
+			err := s.GuildMemberNickname(m.GuildID, id, name)
+			if err != nil {
+				log.Println(err)
+			}
+
+		}
+	}
+}
+
+func CountVotes(s *discordgo.Session, m *discordgo.MessageCreate, amount int) bool {
+	s.MessageReactionAdd(m.ChannelID, m.ID, "✅")
+	s.MessageReactionAdd(m.ChannelID, m.ID, "🖕")
+	time.Sleep(10 * time.Second)
+	reactionMessage, _ := s.ChannelMessage(m.ChannelID, m.ID)
+
+	upvote := 0
+	downvote := 0
+	for _, x := range reactionMessage.Reactions {
+		if x.Emoji.Name == "✅" {
+			upvote = x.Count
+		} else if x.Emoji.Name == "🖕" {
+			downvote = x.Count
+		}
+	} 
+	if upvote > 2 && upvote - downvote > 1 {
+		return true
+	} else {
+		s.ChannelMessageSend(m.ChannelID, "Not enough upvotes! (need at least 2)")
+		return false
+	}
 }

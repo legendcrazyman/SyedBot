@@ -4,8 +4,6 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-//Handler doesn't actually detect reactions, not sure why
-
 func ReactHandler(s *discordgo.Session, r *discordgo.MessageReactionAdd) {
 
 
