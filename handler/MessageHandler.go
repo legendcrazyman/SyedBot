@@ -192,7 +192,6 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 		}
 	}
-	log.Println(m.Content)
 }
 
 func CountVotes(s *discordgo.Session, m *discordgo.MessageCreate, amount int) bool {
