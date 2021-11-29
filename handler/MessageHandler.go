@@ -1,9 +1,12 @@
 package messageHandler
 
 import (
+	"encoding/base64"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"math/rand"
+	"net/http"
 	"regexp"
 	"strings"
 	"time"
@@ -190,6 +193,43 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 				log.Println(err)
 			}
 
+		}
+	}
+
+	if strings.HasPrefix(m.Content, "?setavatar ") {
+		if !CountVotes(s, m, 4) {
+			return
+		}	
+		urlregex := regexp.MustCompile(`(http|ftp|https)://([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?`)
+		url := urlregex.FindString(m.Content)
+		if url != "" { 
+			head, err := http.Head(url)
+			contentType := head.Header.Get("Content-Type")
+			if err != nil || !strings.HasPrefix(contentType, "image") {
+				log.Println(err)
+				s.ChannelMessageSend(m.ChannelID, "Invalid URL Content")
+				return
+			}
+			res, err := http.Get(url)
+			if err != nil {
+				log.Println(err)
+				return
+			}
+			defer res.Body.Close()
+
+			img, err := ioutil.ReadAll(res.Body)
+			if err != nil {
+				log.Println(err)
+				return
+			}
+			base64img :=  base64.StdEncoding.EncodeToString(img)
+			avatar := fmt.Sprintf("data:%s;base64,%s", contentType, base64img)
+			_, err = s.UserUpdate("", "", "", avatar, "")
+			if err != nil {
+				log.Println(err)
+			}
+		} else {
+			s.ChannelMessageSend(m.ChannelID, "You must include an image URL")
 		}
 	}
 }
