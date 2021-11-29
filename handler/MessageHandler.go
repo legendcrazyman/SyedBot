@@ -171,24 +171,28 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 	}
 
 	// todo: move this somewhere else
+	// also, it would probably look better if the command was checked for formatting before the vote counter appears
 	if strings.HasPrefix(m.Content, "?rename ") {
 		if !CountVotes(s, m, 4) {
 			return
 		}	
 		clipped := strings.Replace(m.Content, "?rename ", "", 1)
-		idregex := regexp.MustCompile(`<@!\d+>`)
+		idregex := regexp.MustCompile(`<@!*\d+>`)
 		id := idregex.FindString(m.Content)
 		clipped = idregex.ReplaceAllString(clipped, "")
 		name := strings.TrimSpace(clipped)
 		if id != "" {
-			id = id[3:len(id) - 1]
+			idregex = regexp.MustCompile(`\d+`)
+			id = idregex.FindString(id)
 			err := s.GuildMemberNickname(m.GuildID, id, name)
 			if err != nil {
+				s.ChannelMessageSend(m.ChannelID, "Rename failed!")
 				log.Println(err)
 			}
 
 		}
 	}
+	log.Println(m.Content)
 }
 
 func CountVotes(s *discordgo.Session, m *discordgo.MessageCreate, amount int) bool {
@@ -206,10 +210,10 @@ func CountVotes(s *discordgo.Session, m *discordgo.MessageCreate, amount int) bo
 			downvote = x.Count
 		}
 	} 
-	if upvote > 2 && upvote - downvote > 1 {
+	if upvote > amount && upvote - downvote > 1 {
 		return true
 	} else {
-		s.ChannelMessageSend(m.ChannelID, "Not enough upvotes! (need at least 2)")
+		s.ChannelMessageSend(m.ChannelID, fmt.Sprintf("Not enough upvotes! (need at least %d)", amount))
 		return false
 	}
 }
