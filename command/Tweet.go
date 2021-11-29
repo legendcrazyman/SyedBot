@@ -21,8 +21,6 @@ import (
 /* TODO: make something so that we don't have to make a new twitter api session each time we use a command lol
 also, I'm pretty sure all of these commands can be combined into a single one
 */
-var client = &http.Client {
-}
 var twit *anaconda.TwitterApi
 
 
@@ -34,12 +32,7 @@ func Tweet(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 	if urlregex.MatchString(text) {
 		srcurl := urlregex.FindStringSubmatch(text)[0]
 		text_nourl := strings.ReplaceAll(text, srcurl, "")
-		req, err := http.NewRequest("HEAD", srcurl, nil)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		res, err := client.Do(req)
+		res, err := http.Head(srcurl)
 		if err != nil {
 			fmt.Println(err)
 			return
@@ -103,12 +96,7 @@ func Reply (s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 			if urlregex.MatchString(text) {
 				srcurl := urlregex.FindStringSubmatch(text)[0]
 				text_nourl := strings.ReplaceAll(text, srcurl, "")
-				req, err := http.NewRequest("HEAD", srcurl, nil)
-				if err != nil {
-					fmt.Println(err)
-					return
-				}
-				res, err := client.Do(req)
+				res, err := http.Head(srcurl)
 				if err != nil {
 					fmt.Println(err)
 					return
@@ -203,12 +191,7 @@ func Quote (s *discordgo.Session, m*discordgo.MessageCreate, arg string) {
 }
 */
 func AppendVid (s *discordgo.Session, m *discordgo.MessageCreate, srcurl string, vals *url.Values) error {
-	req, err := http.NewRequest("GET", srcurl, nil)
-
-	if err != nil {
-		return err
-	}
-	res, err := client.Do(req)
+	res, err := http.Get(srcurl)
 	if err != nil {
 		return err
 	}
@@ -218,13 +201,15 @@ func AppendVid (s *discordgo.Session, m *discordgo.MessageCreate, srcurl string,
 	if err != nil {
 		return err
 	}
+	// currently, anaconda does not have a way to set the media_category field
+	// so for now, video uploads are limited to 30 seconds in length
 	media, err := twit.UploadVideoInit(len(body), res.Header.Get("Content-Type"))
 	if err != nil {
 		return err
 	}
 
 	chunk := 0
-	// 5mb chunks
+	// 5mb chunks (api doc says use 1mb chunks? but this works ? ? idk)
 	for i := 0; i < len(body); i += 5242879 { 
 		err = twit.UploadVideoAppend(media.MediaIDString, chunk,
 			base64.StdEncoding.EncodeToString(
@@ -246,11 +231,7 @@ func AppendVid (s *discordgo.Session, m *discordgo.MessageCreate, srcurl string,
 }
 
 func AppendImg (s *discordgo.Session, m *discordgo.MessageCreate, srcurl string, vals *url.Values) error {
-	req, err := http.NewRequest("GET", srcurl, nil)
-	if err != nil {
-		return err
-	}
-	res, err := client.Do(req)
+	res, err := http.Get(srcurl)
 	if err != nil {
 		return err
 	}
