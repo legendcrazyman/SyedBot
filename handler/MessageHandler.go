@@ -102,7 +102,8 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 		if !CountVotes(s, m, 2) {
 			return
 		}	
-		clipped := strings.Replace(m.Content, "?tweet ", "", 1)
+		clipped, _ := m.ContentWithMoreMentionsReplaced(s)
+		clipped = strings.Replace(clipped, "?tweet ", "", 1)
 		go commands.Tweet(s, m, clipped)
 
 	}
@@ -120,7 +121,8 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 		if !CountVotes(s, m, 2) {
 			return
 		}	
-		clipped := strings.Replace(m.Content, "?reply ", "", 1)
+		clipped, _ := m.ContentWithMoreMentionsReplaced(s)
+		clipped = strings.Replace(clipped, "?reply ", "", 1)
 		go commands.Reply(s, m, clipped)
 	}
 	/*

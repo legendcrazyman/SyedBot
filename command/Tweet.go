@@ -51,7 +51,6 @@ func Tweet(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 			text = text_nourl
 		}
 	}
-	text = replaceDiscIds(s, text) 
 	tweet, err := twit.PostTweet(text, vals)
 	if err != nil {
 		log.Println("Tweet post failed" + err.Error())
@@ -117,7 +116,6 @@ func Reply (s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 				}
 			} 
 			status := fmt.Sprintf("@%s %s", tweet.User.ScreenName, text)
-			status = replaceDiscIds(s, status)
 			reply, err := twit.PostTweet(status, vals)
 			if err != nil {
 				s.ChannelMessageSend(m.ChannelID, "Reply failed") 
@@ -262,19 +260,3 @@ func URLtoID (url string) (int64, error) {
 	return idint, nil
 
 }
-
-func replaceDiscIds(s *discordgo.Session, message string) string {	
-	mention := regexp.MustCompile(`<@!*\d+>`)
-	mentions := mention.FindAllString(message, -1)
-	idregex := regexp.MustCompile(`\d+`)
-	for _, item := range mentions {	
-		id := idregex.FindString(item)
-		user, err := s.User(id) 
-		if err != nil {
-			log.Println(err)
-		} else {
-			message = strings.Replace(message, item, "@" + user.Username, 1)
-		}
-	} 
-	return message
-} 
