@@ -235,7 +235,7 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 		}
 	}
 	if strings.HasPrefix(m.Content, "?play ") {
-		urlregex := regexp.MustCompile(`((e\/)|(v=))[A-Za-z0-9]+`) //cba to make a better match
+		urlregex := regexp.MustCompile(`((e\/)|(v=))[A-Za-z0-9\-\_]+`) //cba to make a better match
 		video := urlregex.FindString(m.Content)
 		clipped := video[2:]
 
