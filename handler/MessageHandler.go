@@ -234,6 +234,14 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 			s.ChannelMessageSend(m.ChannelID, "You must include an image URL")
 		}
 	}
+	if strings.HasPrefix(m.Content, "?play ") {
+		urlregex := regexp.MustCompile(`((e\/)|(v=))[A-Za-z0-9]+`) //cba to make a better match
+		video := urlregex.FindString(m.Content)
+		clipped := video[2:]
+
+		go commands.PlayVideo(s, m, clipped)
+	
+	}
 }
 
 func CountVotes(s *discordgo.Session, m *discordgo.MessageCreate, amount int) bool {
