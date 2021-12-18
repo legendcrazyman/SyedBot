@@ -5,12 +5,18 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/bwmarrin/discordgo"
 )
 
-func Crypto(s *discordgo.Session, m *discordgo.MessageCreate, id string) {
+func Crypto(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
+	id := strings.ToLower(arg)
+	droppedchars := regexp.MustCompile(`[^a-z0-9 _-]`)
+	id = droppedchars.ReplaceAllString(id, "")
+	id = strings.ReplaceAll(id, " ", "-")
 	url := "https://api.coingecko.com/api/v3/simple/price?ids=" + id + "&vs_currencies=usd"
 	method := "GET"
   

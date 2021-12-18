@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -22,7 +23,9 @@ const (
 )
 
 func PlayVideo(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
-	videoID := arg
+	vidregex := regexp.MustCompile(`((e\/)|(v=))[A-Za-z0-9\-\_]+`) //cba to make a better match
+	video := vidregex.FindString(arg)
+	videoID := video[2:]
 	client := youtube.Client{}
 
 	audio, err := client.GetVideo(videoID)

@@ -11,6 +11,7 @@ type ConfigData struct {
 	Twitter      Twitter
 	Geocode      string
 	TimeZoneDB   string
+	Prefix 		 string
 }
 
 type Twitter struct {

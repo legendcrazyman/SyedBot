@@ -92,14 +92,10 @@ func TimeUntil (s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 }
 
 func TimeIn (s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
-	url := "https://geocode.xyz"
-	method := "POST"
-
-	payload_loc := strings.NewReader("locate=" + arg + "&json=1&Key=" + config.Config.Geocode)
+	payload_loc := strings.NewReader("locate=" + strings.ReplaceAll(arg, " ", "%20") + "&json=1&Key=" + config.Config.Geocode)
 
 	client := &http.Client{}
-	req, err := http.NewRequest(method, url, payload_loc)
-
+	req, err := http.NewRequest("POST", "https://geocode.xyz", payload_loc)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -132,11 +128,10 @@ func TimeIn (s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 		return
 	}
 
-	url = "http://api.timezonedb.com/v2.1/get-time-zone?key=" + config.Config.TimeZoneDB + "&by=position&format=json&lat=" + geoResponse.Latt + "&lng=" + geoResponse.Longt
-	method = "GET"
+	url := "http://api.timezonedb.com/v2.1/get-time-zone?key=" + config.Config.TimeZoneDB + "&by=position&format=json&lat=" + geoResponse.Latt + "&lng=" + geoResponse.Longt
 
 	payload_time := strings.NewReader("")
-	req, err = http.NewRequest(method, url, payload_time)
+	req, err = http.NewRequest("GET", url, payload_time)
 
 	if err != nil {
 		fmt.Println(err)

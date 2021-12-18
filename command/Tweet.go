@@ -2,6 +2,7 @@ package commands
 
 import (
 	"SyedBot/config"
+	"SyedBot/utilities"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -25,6 +26,9 @@ var twit *anaconda.TwitterApi
 
 
 func Tweet(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
+	if !utilities.CountVotes(s, m, 2) {
+		return
+	}
 	twit = anaconda.NewTwitterApiWithCredentials(config.Config.Twitter.Token, config.Config.Twitter.TokenSecret, config.Config.Twitter.Key, config.Config.Twitter.KeySecret) //why does this need to go here
 	urlregex := regexp.MustCompile(`(http|ftp|https)://([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?`) // stolen
 	text := arg
@@ -62,6 +66,9 @@ func Tweet(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 }
 
 func Retweet (s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
+	if !utilities.CountVotes(s, m, 2) {
+		return
+	}
 	twit = anaconda.NewTwitterApiWithCredentials(config.Config.Twitter.Token, config.Config.Twitter.TokenSecret, config.Config.Twitter.Key, config.Config.Twitter.KeySecret) //why does this need to go here
 	id, err := URLtoID(arg)
 	if err != nil {
@@ -77,6 +84,9 @@ func Retweet (s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 }
 
 func Reply (s *discordgo.Session, m *discordgo.MessageCreate, arg string) {	
+	if !utilities.CountVotes(s, m, 2) {
+		return
+	}
 	urlregex := regexp.MustCompile(`(http|ftp|https)://([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?`)
 	if urlregex.MatchString(arg) {
 		twit = anaconda.NewTwitterApiWithCredentials(config.Config.Twitter.Token, config.Config.Twitter.TokenSecret, config.Config.Twitter.Key, config.Config.Twitter.KeySecret) //why does this need to go here
