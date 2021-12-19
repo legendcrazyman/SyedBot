@@ -12,6 +12,7 @@ type ConfigData struct {
 	Geocode      string
 	TimeZoneDB   string
 	Prefix 		 string
+	MongoDB		 MongoDB
 }
 
 type Twitter struct {
@@ -19,6 +20,12 @@ type Twitter struct {
 	TokenSecret string
 	Key         string
 	KeySecret   string
+}
+
+type MongoDB struct {
+	Hostname	string
+	Username	string
+	Password	string
 }
 
 var Config ConfigData

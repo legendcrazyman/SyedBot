@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"math/rand"
 	"os"
@@ -10,8 +11,11 @@ import (
 
 	config "SyedBot/config"
 	handlers "SyedBot/handler"
+	utilities "SyedBot/utilities"
 
 	"github.com/bwmarrin/discordgo"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 func main() {
 
@@ -33,6 +37,27 @@ func main() {
 	}
 
 	log.Println("Bot started")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	mongoAuth := options.Credential{
+		Username: config.Config.MongoDB.Username,
+		Password: config.Config.MongoDB.Password,
+	}
+	clientOpts := options.Client().ApplyURI(config.Config.MongoDB.Hostname).SetAuth(mongoAuth)
+	utilities.Database, err = mongo.Connect(ctx, clientOpts)
+	log.Println("Database connected")
+	if err != nil {
+		log.Println("Database failed to connect:", err)
+	}
+
+	defer func() {
+		if err = utilities.Database.Disconnect(ctx); err != nil {
+			log.Fatalln("whoops")
+			//make it reconnect? for now just restart the bot
+		}
+	}()
+
 
 	//Run until term signal
 	sc := make(chan os.Signal, 1)

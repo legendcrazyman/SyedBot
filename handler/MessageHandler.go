@@ -85,6 +85,10 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 			go commands.SetAvatar(s, m, arg)
 		case "play": 
 			go commands.PlayVideo(s, m, arg)
+		case "tick": 
+			go commands.Tick(s, m, argWithMentions)
+		case "setnick": 
+			go commands.SetNick(s, m, argWithMentions)
 	} 
 }
 
