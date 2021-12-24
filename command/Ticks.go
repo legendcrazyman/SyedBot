@@ -16,6 +16,9 @@ import (
 )
 
 func Tick(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
+	if !utilities.CountVotes(s, m, 2) {
+		return
+	}
 	if len(m.Mentions) < 1 {
 		s.ChannelMessageSend(m.ChannelID, "You must tag a user to tick")
 		return
@@ -66,6 +69,9 @@ func Tick(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 }
 
 func SetNick(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
+	if !utilities.CountVotes(s, m, 2) {
+		return
+	}
 	if len(m.Mentions) < 1 {
 		s.ChannelMessageSend(m.ChannelID, "You must tag a user to set a nickname")
 		return
