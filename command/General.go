@@ -80,7 +80,7 @@ func SetAvatar(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 	}
 	urlregex := regexp.MustCompile(`(http|ftp|https)://([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?`)
 	url := urlregex.FindString(m.Content)
-	if url != "" { 
+	if url != "" {
 		head, err := http.Head(url)
 		contentType := head.Header.Get("Content-Type")
 		if err != nil || !strings.HasPrefix(contentType, "image") {
@@ -108,5 +108,34 @@ func SetAvatar(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 		}
 	} else {
 		s.ChannelMessageSend(m.ChannelID, "You must include an image URL")
+	}
+}
+
+func PingVoice(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
+	if len(arg) < 3 {
+		s.ChannelMessageSend(m.ChannelID, "Min of 3 characters.")
+		return
+	}
+
+	vsearch := regexp.MustCompile(`.*` + regexp.QuoteMeta(arg) + `.*`)
+
+	guild, err := s.State.Guild(m.GuildID)
+	if err != nil {
+		return
+	}
+
+	for _, c := range guild.Channels {
+		if c.Type == discordgo.ChannelTypeGuildVoice && vsearch.MatchString(c.Name) {
+			users := ""
+			for _, vs := range guild.VoiceStates {
+				if vs.ChannelID == c.ID {
+					users += "<@" + vs.UserID + "> "
+				}
+			}
+			if len(users) != 0 {
+				s.ChannelMessageSend(m.ChannelID, "<@"+m.Author.ID+"> "+users)
+				return
+			}
+		}
 	}
 }
