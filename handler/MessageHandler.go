@@ -93,6 +93,8 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 			go commands.Tick(s, m, argWithMentions)
 		case "setnick": 
 			go commands.SetNick(s, m, argWithMentions)
+		case "vp":
+			go commands.PingVoice(s, m, arg)
 	} 
 }
 
