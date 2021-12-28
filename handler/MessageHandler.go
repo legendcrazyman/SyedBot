@@ -29,6 +29,10 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 	if m.Content == "salam" {
 		s.ChannelMessageSend(m.ChannelID, "salam")
 	}
+
+	if m.Content == "syed" {
+		s.ChannelMessageSend(m.ChannelID, "ji")
+	}
 	
 	if !strings.HasPrefix(m.Content, config.Config.Prefix) { 
 		return
