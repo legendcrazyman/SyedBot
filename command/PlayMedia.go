@@ -25,6 +25,10 @@ const (
 func PlayVideo(s *discordgo.Session, m *discordgo.MessageCreate, arg string) {
 	vidregex := regexp.MustCompile(`((e\/)|(v=))[A-Za-z0-9\-\_]+`) //cba to make a better match
 	video := vidregex.FindString(arg)
+	if len(video) < 10 {
+		s.ChannelMessageSend(m.ChannelID, "Invalid Video URL!")
+		return
+	}
 	videoID := video[2:]
 	client := youtube.Client{}
 
