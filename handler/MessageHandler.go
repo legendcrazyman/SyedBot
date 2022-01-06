@@ -33,10 +33,6 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 	if m.Content == "syed" {
 		s.ChannelMessageSend(m.ChannelID, "ji")
 	}
-
-	if m.Content == "ticks" {
-		s.ChannelMessageSend(m.ChannelID, "http://www.monko2k.xyz/")
-	}
 	
 	if !strings.HasPrefix(m.Content, config.Config.Prefix) { 
 		return
